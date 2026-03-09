@@ -5,7 +5,7 @@ const socketIo = require("socket.io");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
-const setupSocket = require("./socket");
+const setupSocket = require("./socket/handler")
 
 const app = express();
 const server = http.createServer(app);
