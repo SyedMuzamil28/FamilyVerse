@@ -1,59 +1,44 @@
 require("dotenv").config();
 const express = require("express");
 const http = require("http");
-const socketIo = require("socket.io");
+const { Server } = require("socket.io");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const rateLimit = require("express-rate-limit");
-const setupSocket = require("./socket/handler");
 
 const app = express();
 const server = http.createServer(app);
-app.use(cors({ origin: "*" }));
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.some(o => origin.startsWith(o.replace("https://","").replace("http://","")))) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Allow all for now, restrict in production
-    }
-  },
-  credentials: true
-}));
+// ── CORS — Allow everything ──────────────────────────────────────────────────
+app.use(cors());
+app.options("*", cors());
 
-// Socket.IO
-const io = socketIo(server, {
-  cors: { origin: "*", methods: ["GET","POST"], credentials: true }
+// ── Socket.IO ────────────────────────────────────────────────────────────────
+const io = new Server(server, {
+  cors: { origin: "*", methods: ["GET","POST","PUT","PATCH","DELETE"] }
 });
-setupSocket(io);
+require("./socket/handler")(io);
 
-// Rate limiting
-app.use("/api/auth", rateLimit({ windowMs: 15*60*1000, max: 20, message: "Too many requests" }));
-
+// ── Middleware ────────────────────────────────────────────────────────────────
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Routes
-app.use("/api/auth",     require("./routes/auth"));
-app.use("/api/messages", require("./routes/messages"));
-app.use("/api/health",   require("./routes/health"));
-app.use("/api/memories", require("./routes/memories"));
+// ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/api/family",   require("./routes/family"));
+app.use("/api/health",   require("./routes/health"));
+app.use("/api/messages", require("./routes/messages"));
+app.use("/api/memories", require("./routes/memories"));
 
-// Health check
-app.get("/api/ping", (req, res) => res.json({ status: "ok", timestamp: new Date() }));
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get("/api/ping", (req, res) => res.json({ status: "ok", time: new Date() }));
 
-// MongoDB + Server start
+// ── MongoDB ───────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log("✅ MongoDB connected");
-    server.listen(PORT, () => console.log(`🚀 FamilyVerse backend running on port ${PORT}`));
+    server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
   })
   .catch(err => {
     console.error("❌ MongoDB error:", err.message);
     process.exit(1);
   });
-
-module.exports = { app, io };
