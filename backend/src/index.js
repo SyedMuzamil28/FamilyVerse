@@ -9,13 +9,7 @@ const setupSocket = require("./socket/handler");
 
 const app = express();
 const server = http.createServer(app);
-
-// CORS
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  "http://localhost:3000",
-  "https://localhost:3000",
-].filter(Boolean);
+app.use(cors({ origin: "*" }));
 
 app.use(cors({
   origin: (origin, callback) => {
