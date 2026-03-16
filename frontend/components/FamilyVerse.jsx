@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "https://familyverse-backend.up.railway.app";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://familyverse-production.up.railway.app";
 
 const api = async (method, path, body, token) => {
   const res = await fetch(`${API}/api${path}`, {
