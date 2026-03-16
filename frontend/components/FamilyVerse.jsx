@@ -15,9 +15,9 @@ const api = async (method, path, body, token) => {
 };
 
 const LS = {
-  get: (k, d) => { try { const v = localStorage.getItem("fv_" + k); return v ? JSON.parse(v) : d; } catch { return d; } },
-  set: (k, v) => { try { localStorage.setItem("fv_" + k, JSON.stringify(v)); } catch {} },
-  clear: () => { try { Object.keys(localStorage).filter(k => k.startsWith("fv_")).forEach(k => localStorage.removeItem(k)); } catch {} },
+  get: (k, d) => { try { if (typeof window === "undefined") return d; const v = localStorage.getItem("fv_" + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set: (k, v) => { try { if (typeof window === "undefined") return; localStorage.setItem("fv_" + k, JSON.stringify(v)); } catch {} },
+  clear: () => { try { if (typeof window === "undefined") return; Object.keys(localStorage).filter(k => k.startsWith("fv_")).forEach(k => localStorage.removeItem(k)); } catch {} },
 };
 
 const ROLES = ["Father","Mother","Son","Daughter","Brother","Sister","Grandfather","Grandmother","Uncle","Aunt","Other"];
@@ -346,7 +346,14 @@ function DrawingBoard() {
 }
 
 export default function FamilyVerse() {
-  const [session, setSession] = useState(() => LS.get("session", null));
+  const [session, setSession] = useState(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    const savedSession = LS.get("session", null);
+    if (savedSession) setSession(savedSession);
+  }, []);
+
   const [obMode, setObMode] = useState("create");
   const [obStep, setObStep] = useState(1);
   const [obData, setObData] = useState({ familyName:"", userName:"", role:"Father", city:"Hyderabad", password:"", joinCode:"" });
@@ -541,6 +548,8 @@ export default function FamilyVerse() {
     } catch(e) { alert("❌ " + e.message); }
     finally { setObLoading(false); }
   };
+
+  if (!mounted) return null;
 
   if (!session) {
     return (
