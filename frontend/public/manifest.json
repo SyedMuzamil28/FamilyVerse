@@ -1,0 +1,19 @@
+{
+  "name": "FamilyVerse",
+  "short_name": "FamilyVerse",
+  "description": "Your private family universe",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f17",
+  "theme_color": "#6366F1",
+  "icons": [
+    {
+      "src": "https://api.dicebear.com/7.x/icons/svg?seed=home&backgroundColor=6366F1",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "health", "social"]
+}
