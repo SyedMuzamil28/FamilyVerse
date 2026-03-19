@@ -1,13 +1,21 @@
 const mongoose = require("mongoose");
 
-const familySchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
-  inviteCode: { type: String, required: true, unique: true },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  members: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-  city: { type: String, default: "" },
-  happinessScore: { type: Number, default: 0 },
-  avatar: { type: String, default: "🏠" },
+const MemberSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  role: { type: String, required: true },
+  emoji: { type: String, default: "👤" },
+  password: { type: String, required: true },
+  mood: { type: String, default: "happy" },
+  online: { type: Boolean, default: false },
+  lastSeen: { type: Date, default: Date.now },
+  socketId: { type: String, default: null },
 }, { timestamps: true });
 
-module.exports = mongoose.model("Family", familySchema);
+const FamilySchema = new mongoose.Schema({
+  familyName: { type: String, required: true },
+  inviteCode: { type: String, required: true, unique: true },
+  city: { type: String, default: "Hyderabad" },
+  members: [MemberSchema],
+}, { timestamps: true });
+
+module.exports = mongoose.model("Family", FamilySchema);
