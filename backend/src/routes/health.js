@@ -1,101 +1,231 @@
 const express = require("express");
-const axios = require("axios");
-const HealthLog = require("../models/HealthLog");
-const Medicine = require("../models/Medicine");
-const auth = require("../middleware/auth");
 const router = express.Router();
+const jwt = require("jsonwebtoken");
+const axios = require("axios");
+const { Medicine, HealthLog, Appointment } = require("../models/Health");
 
-// GET all medicines for family
-router.get("/medicines", auth, async (req, res) => {
+const auth = (req) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) throw new Error("No token");
+  return jwt.verify(token, process.env.JWT_SECRET || "secret123");
+};
+
+// ── MEDICINES ──────────────────────────────────────────────────────────────
+router.get("/medicines", async (req, res) => {
   try {
-    const meds = await Medicine.find({ familyId: req.user.familyId }).sort({ createdAt: -1 });
-    res.json(meds);
+    const { familyCode } = auth(req);
+    const medicines = await Medicine.find({ familyCode }).sort({ createdAt: -1 });
+    res.json(medicines);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ADD medicine
-router.post("/medicines", auth, async (req, res) => {
+router.post("/medicines", async (req, res) => {
   try {
-    const med = new Medicine({ ...req.body, familyId: req.user.familyId, memberId: req.user._id });
+    const { familyCode } = auth(req);
+    const med = new Medicine({ familyCode, ...req.body });
     await med.save();
     res.json(med);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// MARK medicine taken
-router.patch("/medicines/:id/taken", auth, async (req, res) => {
+router.patch("/medicines/:id/taken", async (req, res) => {
   try {
-    const med = await Medicine.findByIdAndUpdate(req.params.id, { taken: true, takenAt: new Date() }, { new: true });
+    const { familyCode } = auth(req);
+    const med = await Medicine.findOneAndUpdate(
+      { _id: req.params.id, familyCode },
+      { taken: true, takenAt: new Date() },
+      { new: true }
+    );
     res.json(med);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// DELETE medicine
-router.delete("/medicines/:id", auth, async (req, res) => {
+router.delete("/medicines/:id", async (req, res) => {
   try {
-    await Medicine.findByIdAndDelete(req.params.id);
+    const { familyCode } = auth(req);
+    await Medicine.deleteOne({ _id: req.params.id, familyCode });
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET health logs
-router.get("/logs", auth, async (req, res) => {
+// ── HEALTH LOGS ────────────────────────────────────────────────────────────
+router.get("/logs", async (req, res) => {
   try {
-    const logs = await HealthLog.find({ familyId: req.user.familyId }).sort({ createdAt: -1 }).limit(50);
+    const { familyCode } = auth(req);
+    const logs = await HealthLog.find({ familyCode }).sort({ date: -1 }).limit(50);
     res.json(logs);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ADD health log
-router.post("/logs", auth, async (req, res) => {
+router.post("/logs", async (req, res) => {
   try {
-    const log = new HealthLog({ ...req.body, familyId: req.user.familyId, userId: req.user._id });
+    const { familyCode, memberName } = auth(req);
+    const log = new HealthLog({ familyCode, member: memberName, ...req.body });
     await log.save();
+
+    // Auto AI analysis
+    if (req.body.bloodSugar || req.body.bloodPressure || req.body.text) {
+      try {
+        const analysis = await getAIHealthAdvice({
+          bloodSugar: req.body.bloodSugar,
+          bloodPressure: req.body.bloodPressure,
+          note: req.body.text,
+          member: memberName,
+        });
+        log.aiAnalysis = analysis;
+        await log.save();
+      } catch (e) { console.log("AI analysis skipped:", e.message); }
+    }
     res.json(log);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// AI HEALTH ANALYSIS
-router.post("/analyze", auth, async (req, res) => {
+// ── REPORT UPLOAD + AI ANALYSIS ────────────────────────────────────────────
+// Accepts base64 PDF or image, sends to Claude for analysis
+router.post("/analyze-report", async (req, res) => {
   try {
-    const { measurements, symptoms, member, reportText } = req.body;
-    if (!process.env.ANTHROPIC_API_KEY) return res.status(400).json({ error: "AI not configured" });
+    const { familyCode, memberName } = auth(req);
+    const { fileData, fileType, fileName, note } = req.body;
 
-    const prompt = `You are a compassionate family health assistant. A family member named ${member} has shared the following health information:
+    if (!fileData) return res.status(400).json({ error: "No file data provided" });
 
-${measurements?.bloodPressure ? `Blood Pressure: ${measurements.bloodPressure}` : ""}
-${measurements?.bloodSugar ? `Blood Sugar: ${measurements.bloodSugar} mg/dL` : ""}
-${measurements?.weight ? `Weight: ${measurements.weight}` : ""}
-${measurements?.heartRate ? `Heart Rate: ${measurements.heartRate} bpm` : ""}
-${symptoms ? `Symptoms/Notes: ${symptoms}` : ""}
-${reportText ? `Health Report Details: ${reportText}` : ""}
+    console.log(`📄 Analyzing report for ${memberName}: ${fileName}`);
+
+    // Send to Claude API with the document
+    let analysis;
+    try {
+      const messages = [{
+        role: "user",
+        content: [
+          {
+            type: fileType === "application/pdf" ? "document" : "image",
+            source: {
+              type: "base64",
+              media_type: fileType,
+              data: fileData,
+            },
+          },
+          {
+            type: "text",
+            text: `You are a caring family health assistant. Please analyze this medical report for ${memberName}.
+
+${note ? `Additional note from patient: ${note}` : ""}
 
 Please provide:
-1. A brief friendly analysis of these health readings
-2. Whether the values are in normal range
-3. Simple lifestyle recommendations
-4. When they should see a doctor
-5. Any immediate concerns
+1. **Summary**: What this report shows in simple language (2-3 sentences)
+2. **Key Values**: List important values and whether they are Normal ✅, Low ⚠️, or High ⚠️
+3. **What This Means**: Explain in simple words what the results mean for their health
+4. **Recommendations**: 2-3 practical suggestions
+5. **Should See Doctor?**: Yes/No and why
 
-Keep it simple, warm, and easy to understand for a family. Use emojis. Do NOT replace a real doctor.`;
+Keep the language simple and caring — this is for a family app. Use emojis to make it friendly. Be reassuring where values are normal.`,
+          },
+        ],
+      }];
 
-    const response = await axios.post("https://api.anthropic.com/v1/messages", {
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 800,
-      messages: [{ role: "user", content: prompt }]
-    }, {
-      headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" }
-    });
-
-    const analysis = response.data.content[0].text;
-    if (req.body.saveLog) {
-      const log = new HealthLog({ familyId: req.user.familyId, userId: req.user._id, member, type: "measurement", content: symptoms || "", measurements: measurements || {}, aiAnalysis: analysis });
-      await log.save();
+      const response = await axios.post(
+        "https://api.anthropic.com/v1/messages",
+        {
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages,
+        },
+        {
+          headers: {
+            "x-api-key": process.env.ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+            "anthropic-beta": "pdfs-2024-09-25",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      analysis = response.data.content[0].text;
+    } catch (e) {
+      console.error("Claude API error:", e.response?.data || e.message);
+      analysis = "AI analysis unavailable. Please check your ANTHROPIC_API_KEY in Railway settings.";
     }
-    res.json({ analysis });
+
+    // Save to health log
+    const log = new HealthLog({
+      familyCode,
+      member: memberName,
+      text: `📄 Report: ${fileName}${note ? ` — ${note}` : ""}`,
+      aiAnalysis: analysis,
+      category: "report",
+      date: new Date(),
+    });
+    await log.save();
+
+    res.json({ analysis, logId: log._id });
   } catch (err) {
-    res.status(500).json({ error: "AI analysis failed: " + err.message });
+    console.error("Report analysis error:", err);
+    res.status(500).json({ error: err.message });
   }
+});
+
+// ── AI HEALTH ADVICE ───────────────────────────────────────────────────────
+async function getAIHealthAdvice(data) {
+  const prompt = `You are a caring family health assistant. Be warm, simple, and helpful.
+
+Patient: ${data.member}
+${data.bloodSugar ? `Blood Sugar: ${data.bloodSugar} mg/dL` : ""}
+${data.bloodPressure ? `Blood Pressure: ${data.bloodPressure}` : ""}
+${data.note ? `Health Note: ${data.note}` : ""}
+
+Give brief, practical health advice in 2-3 sentences. Be caring and specific.
+If values are normal, reassure them. If concerning, advise them to see a doctor.
+Keep it simple and warm — this is for a family app.`;
+
+  const response = await axios.post(
+    "https://api.anthropic.com/v1/messages",
+    {
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 300,
+      messages: [{ role: "user", content: prompt }],
+    },
+    {
+      headers: {
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response.data.content[0].text;
+}
+
+router.post("/ai-advice", async (req, res) => {
+  try {
+    auth(req);
+    const advice = await getAIHealthAdvice(req.body);
+    res.json({ advice });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── APPOINTMENTS ───────────────────────────────────────────────────────────
+router.get("/appointments", async (req, res) => {
+  try {
+    const { familyCode } = auth(req);
+    const apts = await Appointment.find({ familyCode }).sort({ createdAt: -1 });
+    res.json(apts);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post("/appointments", async (req, res) => {
+  try {
+    const { familyCode } = auth(req);
+    const apt = new Appointment({ familyCode, ...req.body });
+    await apt.save();
+    res.json(apt);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete("/appointments/:id", async (req, res) => {
+  try {
+    const { familyCode } = auth(req);
+    await Appointment.deleteOne({ _id: req.params.id, familyCode });
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;
