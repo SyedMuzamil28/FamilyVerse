@@ -688,192 +688,315 @@ export default function FamilyVerse(){
 const Faith=()=>{
   const[tb,setTb]=useState(tasbeeh);
   const[dailyAyah,setDailyAyah]=useState(null);
-  const[playingId,setPlayingId]=useState(null);
-  const[openSurah,setOpenSurah]=useState(null); // {n, name, arabic, meaning}
-  const[surahVerses,setSurahVerses]=useState([]);
-  const[versesLoading,setVersesLoading]=useState(false);
-  const[versesError,setVersesError]=useState(false);
-  const[audioObj,setAudioObj]=useState(null);
-  const[quranTab,setQuranTab]=useState("surahs"); // surahs | reading
+  const[view,setView]=useState("main"); // main | surahList | reading
+  const[selectedSurah,setSelectedSurah]=useState(null);
+  const[verses,setVerses]=useState([]);
+  const[loading,setLoading]=useState(false);
+  const[loadError,setLoadError]=useState(false);
+  const[audioPlaying,setAudioPlaying]=useState(null); // "arabic" | "urdu" | null
+  const[currentAudio,setCurrentAudio]=useState(null);
+  const[searchQ,setSearchQ]=useState("");
 
-  // Surahs list with CORRECT audio URLs
-  const SURAHS=[
-    {n:1,name:"Al-Fatihah",arabic:"الْفَاتِحَة",meaning:"The Opening",verses:7},
-    {n:2,name:"Al-Baqarah",arabic:"الْبَقَرَة",meaning:"The Cow",verses:286},
-    {n:3,name:"Ali Imran",arabic:"آل عِمْرَان",meaning:"Family of Imran",verses:200},
-    {n:4,name:"An-Nisa",arabic:"النِّسَاء",meaning:"The Women",verses:176},
-    {n:5,name:"Al-Maidah",arabic:"الْمَائِدَة",meaning:"The Table Spread",verses:120},
-    {n:18,name:"Al-Kahf",arabic:"الْكَهْف",meaning:"The Cave",verses:110},
-    {n:19,name:"Maryam",arabic:"مَرْيَم",meaning:"Mary",verses:98},
-    {n:36,name:"Ya-Sin",arabic:"يس",meaning:"Ya Sin",verses:83},
-    {n:55,name:"Ar-Rahman",arabic:"الرَّحْمَٰن",meaning:"The Most Gracious",verses:78},
-    {n:56,name:"Al-Waqi'ah",arabic:"الْوَاقِعَة",meaning:"The Inevitable",verses:96},
-    {n:67,name:"Al-Mulk",arabic:"الْمُلْك",meaning:"The Sovereignty",verses:30},
-    {n:78,name:"An-Naba",arabic:"النَّبَأ",meaning:"The Tidings",verses:40},
-    {n:93,name:"Ad-Duha",arabic:"الضُّحَى",meaning:"The Morning Hours",verses:11},
-    {n:94,name:"Ash-Sharh",arabic:"الشَّرْح",meaning:"The Relief",verses:8},
-    {n:99,name:"Az-Zalzalah",arabic:"الزَّلْزَلَة",meaning:"The Earthquake",verses:8},
-    {n:108,name:"Al-Kawthar",arabic:"الْكَوْثَر",meaning:"Abundance",verses:3},
-    {n:112,name:"Al-Ikhlas",arabic:"الْإِخْلَاص",meaning:"Sincerity",verses:4},
-    {n:113,name:"Al-Falaq",arabic:"الْفَلَق",meaning:"The Daybreak",verses:5},
-    {n:114,name:"An-Nas",arabic:"النَّاس",meaning:"Mankind",verses:6},
+  // ALL 114 SURAHS — Correct Arabic names and meanings
+  const ALL_SURAHS=[
+    {n:1,name:"Al-Fatihah",ar:"الفاتحة",eng:"The Opening",v:7,type:"Meccan"},
+    {n:2,name:"Al-Baqarah",ar:"البقرة",eng:"The Cow",v:286,type:"Medinan"},
+    {n:3,name:"Ali 'Imran",ar:"آل عمران",eng:"Family of Imran",v:200,type:"Medinan"},
+    {n:4,name:"An-Nisa",ar:"النساء",eng:"The Women",v:176,type:"Medinan"},
+    {n:5,name:"Al-Ma'idah",ar:"المائدة",eng:"The Table Spread",v:120,type:"Medinan"},
+    {n:6,name:"Al-An'am",ar:"الأنعام",eng:"The Cattle",v:165,type:"Meccan"},
+    {n:7,name:"Al-A'raf",ar:"الأعراف",eng:"The Heights",v:206,type:"Meccan"},
+    {n:8,name:"Al-Anfal",ar:"الأنفال",eng:"The Spoils of War",v:75,type:"Medinan"},
+    {n:9,name:"At-Tawbah",ar:"التوبة",eng:"The Repentance",v:129,type:"Medinan"},
+    {n:10,name:"Yunus",ar:"يونس",eng:"Jonah",v:109,type:"Meccan"},
+    {n:11,name:"Hud",ar:"هود",eng:"Hud",v:123,type:"Meccan"},
+    {n:12,name:"Yusuf",ar:"يوسف",eng:"Joseph",v:111,type:"Meccan"},
+    {n:13,name:"Ar-Ra'd",ar:"الرعد",eng:"The Thunder",v:43,type:"Medinan"},
+    {n:14,name:"Ibrahim",ar:"إبراهيم",eng:"Abraham",v:52,type:"Meccan"},
+    {n:15,name:"Al-Hijr",ar:"الحجر",eng:"The Rocky Tract",v:99,type:"Meccan"},
+    {n:16,name:"An-Nahl",ar:"النحل",eng:"The Bee",v:128,type:"Meccan"},
+    {n:17,name:"Al-Isra",ar:"الإسراء",eng:"The Night Journey",v:111,type:"Meccan"},
+    {n:18,name:"Al-Kahf",ar:"الكهف",eng:"The Cave",v:110,type:"Meccan"},
+    {n:19,name:"Maryam",ar:"مريم",eng:"Mary",v:98,type:"Meccan"},
+    {n:20,name:"Ta-Ha",ar:"طه",eng:"Ta-Ha",v:135,type:"Meccan"},
+    {n:21,name:"Al-Anbiya",ar:"الأنبياء",eng:"The Prophets",v:112,type:"Meccan"},
+    {n:22,name:"Al-Hajj",ar:"الحج",eng:"The Pilgrimage",v:78,type:"Medinan"},
+    {n:23,name:"Al-Mu'minun",ar:"المؤمنون",eng:"The Believers",v:118,type:"Meccan"},
+    {n:24,name:"An-Nur",ar:"النور",eng:"The Light",v:64,type:"Medinan"},
+    {n:25,name:"Al-Furqan",ar:"الفرقان",eng:"The Criterion",v:77,type:"Meccan"},
+    {n:26,name:"Ash-Shu'ara",ar:"الشعراء",eng:"The Poets",v:227,type:"Meccan"},
+    {n:27,name:"An-Naml",ar:"النمل",eng:"The Ant",v:93,type:"Meccan"},
+    {n:28,name:"Al-Qasas",ar:"القصص",eng:"The Stories",v:88,type:"Meccan"},
+    {n:29,name:"Al-'Ankabut",ar:"العنكبوت",eng:"The Spider",v:69,type:"Meccan"},
+    {n:30,name:"Ar-Rum",ar:"الروم",eng:"The Romans",v:60,type:"Meccan"},
+    {n:31,name:"Luqman",ar:"لقمان",eng:"Luqman",v:34,type:"Meccan"},
+    {n:32,name:"As-Sajdah",ar:"السجدة",eng:"The Prostration",v:30,type:"Meccan"},
+    {n:33,name:"Al-Ahzab",ar:"الأحزاب",eng:"The Combined Forces",v:73,type:"Medinan"},
+    {n:34,name:"Saba",ar:"سبأ",eng:"Sheba",v:54,type:"Meccan"},
+    {n:35,name:"Fatir",ar:"فاطر",eng:"Originator",v:45,type:"Meccan"},
+    {n:36,name:"Ya-Sin",ar:"يس",eng:"Ya Sin",v:83,type:"Meccan"},
+    {n:37,name:"As-Saffat",ar:"الصافات",eng:"Those Ranged in Ranks",v:182,type:"Meccan"},
+    {n:38,name:"Sad",ar:"ص",eng:"The Letter Sad",v:88,type:"Meccan"},
+    {n:39,name:"Az-Zumar",ar:"الزمر",eng:"The Groups",v:75,type:"Meccan"},
+    {n:40,name:"Ghafir",ar:"غافر",eng:"The Forgiver",v:85,type:"Meccan"},
+    {n:41,name:"Fussilat",ar:"فصلت",eng:"Explained in Detail",v:54,type:"Meccan"},
+    {n:42,name:"Ash-Shura",ar:"الشورى",eng:"The Consultation",v:53,type:"Meccan"},
+    {n:43,name:"Az-Zukhruf",ar:"الزخرف",eng:"The Ornaments of Gold",v:89,type:"Meccan"},
+    {n:44,name:"Ad-Dukhan",ar:"الدخان",eng:"The Smoke",v:59,type:"Meccan"},
+    {n:45,name:"Al-Jathiyah",ar:"الجاثية",eng:"The Crouching",v:37,type:"Meccan"},
+    {n:46,name:"Al-Ahqaf",ar:"الأحقاف",eng:"The Wind-Curved Sandhills",v:35,type:"Meccan"},
+    {n:47,name:"Muhammad",ar:"محمد",eng:"Muhammad",v:38,type:"Medinan"},
+    {n:48,name:"Al-Fath",ar:"الفتح",eng:"The Victory",v:29,type:"Medinan"},
+    {n:49,name:"Al-Hujurat",ar:"الحجرات",eng:"The Rooms",v:18,type:"Medinan"},
+    {n:50,name:"Qaf",ar:"ق",eng:"The Letter Qaf",v:45,type:"Meccan"},
+    {n:51,name:"Adh-Dhariyat",ar:"الذاريات",eng:"The Winnowing Winds",v:60,type:"Meccan"},
+    {n:52,name:"At-Tur",ar:"الطور",eng:"The Mount",v:49,type:"Meccan"},
+    {n:53,name:"An-Najm",ar:"النجم",eng:"The Star",v:62,type:"Meccan"},
+    {n:54,name:"Al-Qamar",ar:"القمر",eng:"The Moon",v:55,type:"Meccan"},
+    {n:55,name:"Ar-Rahman",ar:"الرحمن",eng:"The Most Gracious",v:78,type:"Medinan"},
+    {n:56,name:"Al-Waqi'ah",ar:"الواقعة",eng:"The Inevitable",v:96,type:"Meccan"},
+    {n:57,name:"Al-Hadid",ar:"الحديد",eng:"The Iron",v:29,type:"Medinan"},
+    {n:58,name:"Al-Mujadila",ar:"المجادلة",eng:"The Pleading Woman",v:22,type:"Medinan"},
+    {n:59,name:"Al-Hashr",ar:"الحشر",eng:"The Exile",v:24,type:"Medinan"},
+    {n:60,name:"Al-Mumtahanah",ar:"الممتحنة",eng:"She That is to be Examined",v:13,type:"Medinan"},
+    {n:61,name:"As-Saf",ar:"الصف",eng:"The Ranks",v:14,type:"Medinan"},
+    {n:62,name:"Al-Jumu'ah",ar:"الجمعة",eng:"The Congregation",v:11,type:"Medinan"},
+    {n:63,name:"Al-Munafiqun",ar:"المنافقون",eng:"The Hypocrites",v:11,type:"Medinan"},
+    {n:64,name:"At-Taghabun",ar:"التغابن",eng:"The Mutual Disillusion",v:18,type:"Medinan"},
+    {n:65,name:"At-Talaq",ar:"الطلاق",eng:"The Divorce",v:12,type:"Medinan"},
+    {n:66,name:"At-Tahrim",ar:"التحريم",eng:"The Prohibition",v:12,type:"Medinan"},
+    {n:67,name:"Al-Mulk",ar:"الملك",eng:"The Sovereignty",v:30,type:"Meccan"},
+    {n:68,name:"Al-Qalam",ar:"القلم",eng:"The Pen",v:52,type:"Meccan"},
+    {n:69,name:"Al-Haqqah",ar:"الحاقة",eng:"The Reality",v:52,type:"Meccan"},
+    {n:70,name:"Al-Ma'arij",ar:"المعارج",eng:"The Ascending Stairways",v:44,type:"Meccan"},
+    {n:71,name:"Nuh",ar:"نوح",eng:"Noah",v:28,type:"Meccan"},
+    {n:72,name:"Al-Jinn",ar:"الجن",eng:"The Jinn",v:28,type:"Meccan"},
+    {n:73,name:"Al-Muzzammil",ar:"المزمل",eng:"The Enshrouded One",v:20,type:"Meccan"},
+    {n:74,name:"Al-Muddaththir",ar:"المدثر",eng:"The Cloaked One",v:56,type:"Meccan"},
+    {n:75,name:"Al-Qiyamah",ar:"القيامة",eng:"The Resurrection",v:40,type:"Meccan"},
+    {n:76,name:"Al-Insan",ar:"الإنسان",eng:"The Man",v:31,type:"Medinan"},
+    {n:77,name:"Al-Mursalat",ar:"المرسلات",eng:"The Emissaries",v:50,type:"Meccan"},
+    {n:78,name:"An-Naba",ar:"النبأ",eng:"The Tidings",v:40,type:"Meccan"},
+    {n:79,name:"An-Nazi'at",ar:"النازعات",eng:"Those Who Drag Forth",v:46,type:"Meccan"},
+    {n:80,name:"Abasa",ar:"عبس",eng:"He Frowned",v:42,type:"Meccan"},
+    {n:81,name:"At-Takwir",ar:"التكوير",eng:"The Overthrowing",v:29,type:"Meccan"},
+    {n:82,name:"Al-Infitar",ar:"الانفطار",eng:"The Cleaving",v:19,type:"Meccan"},
+    {n:83,name:"Al-Mutaffifin",ar:"المطففين",eng:"The Defrauding",v:36,type:"Meccan"},
+    {n:84,name:"Al-Inshiqaq",ar:"الانشقاق",eng:"The Splitting Open",v:25,type:"Meccan"},
+    {n:85,name:"Al-Buruj",ar:"البروج",eng:"The Mansions of the Stars",v:22,type:"Meccan"},
+    {n:86,name:"At-Tariq",ar:"الطارق",eng:"The Morning Star",v:17,type:"Meccan"},
+    {n:87,name:"Al-A'la",ar:"الأعلى",eng:"The Most High",v:19,type:"Meccan"},
+    {n:88,name:"Al-Ghashiyah",ar:"الغاشية",eng:"The Overwhelming",v:26,type:"Meccan"},
+    {n:89,name:"Al-Fajr",ar:"الفجر",eng:"The Dawn",v:30,type:"Meccan"},
+    {n:90,name:"Al-Balad",ar:"البلد",eng:"The City",v:20,type:"Meccan"},
+    {n:91,name:"Ash-Shams",ar:"الشمس",eng:"The Sun",v:15,type:"Meccan"},
+    {n:92,name:"Al-Layl",ar:"الليل",eng:"The Night",v:21,type:"Meccan"},
+    {n:93,name:"Ad-Duha",ar:"الضحى",eng:"The Morning Hours",v:11,type:"Meccan"},
+    {n:94,name:"Ash-Sharh",ar:"الشرح",eng:"The Relief",v:8,type:"Meccan"},
+    {n:95,name:"At-Tin",ar:"التين",eng:"The Fig",v:8,type:"Meccan"},
+    {n:96,name:"Al-'Alaq",ar:"العلق",eng:"The Clot",v:19,type:"Meccan"},
+    {n:97,name:"Al-Qadr",ar:"القدر",eng:"The Power",v:5,type:"Meccan"},
+    {n:98,name:"Al-Bayyinah",ar:"البينة",eng:"The Clear Proof",v:8,type:"Medinan"},
+    {n:99,name:"Az-Zalzalah",ar:"الزلزلة",eng:"The Earthquake",v:8,type:"Medinan"},
+    {n:100,name:"Al-'Adiyat",ar:"العاديات",eng:"The Courser",v:11,type:"Meccan"},
+    {n:101,name:"Al-Qari'ah",ar:"القارعة",eng:"The Calamity",v:11,type:"Meccan"},
+    {n:102,name:"At-Takathur",ar:"التكاثر",eng:"The Rivalry in World Increase",v:8,type:"Meccan"},
+    {n:103,name:"Al-'Asr",ar:"العصر",eng:"The Declining Day",v:3,type:"Meccan"},
+    {n:104,name:"Al-Humazah",ar:"الهمزة",eng:"The Traducer",v:9,type:"Meccan"},
+    {n:105,name:"Al-Fil",ar:"الفيل",eng:"The Elephant",v:5,type:"Meccan"},
+    {n:106,name:"Quraysh",ar:"قريش",eng:"Quraysh",v:4,type:"Meccan"},
+    {n:107,name:"Al-Ma'un",ar:"الماعون",eng:"The Small Kindnesses",v:7,type:"Meccan"},
+    {n:108,name:"Al-Kawthar",ar:"الكوثر",eng:"The Abundance",v:3,type:"Meccan"},
+    {n:109,name:"Al-Kafirun",ar:"الكافرون",eng:"The Disbelievers",v:6,type:"Meccan"},
+    {n:110,name:"An-Nasr",ar:"النصر",eng:"The Divine Support",v:3,type:"Medinan"},
+    {n:111,name:"Al-Masad",ar:"المسد",eng:"The Palm Fibre",v:5,type:"Meccan"},
+    {n:112,name:"Al-Ikhlas",ar:"الإخلاص",eng:"Sincerity",v:4,type:"Meccan"},
+    {n:113,name:"Al-Falaq",ar:"الفلق",eng:"The Daybreak",v:5,type:"Meccan"},
+    {n:114,name:"An-Nas",ar:"الناس",eng:"Mankind",v:6,type:"Meccan"},
   ];
 
-  // Load daily ayah
+  const filtered=searchQ.trim()
+    ? ALL_SURAHS.filter(s=>
+        s.name.toLowerCase().includes(searchQ.toLowerCase())||
+        s.ar.includes(searchQ)||
+        s.eng.toLowerCase().includes(searchQ.toLowerCase())||
+        String(s.n).includes(searchQ)
+      )
+    : ALL_SURAHS;
+
   useEffect(()=>{
     fetch(`${API}/api/quran/today`)
-      .then(r=>r.json())
-      .then(d=>setDailyAyah(d))
-      .catch(()=>{
-        setDailyAyah({
-          arabic:"إِنَّ مَعَ الْعُسْرِ يُسْرًا",
-          urdu:"بیشک مشکل کے ساتھ آسانی ہے",
-          english:"Indeed, with hardship comes ease.",
-          ref:"Surah Ash-Sharh 94:6"
-        });
-      });
+      .then(r=>r.json()).then(setDailyAyah)
+      .catch(()=>setDailyAyah({arabic:"إِنَّ مَعَ الْعُسْرِ يُسْرًا",urdu:"بیشک مشکل کے ساتھ آسانی ہے",english:"Indeed, with hardship comes ease.",ref:"Surah Ash-Sharh 94:6"}));
   },[]);
 
-  // Play/pause surah audio
-  const toggleAudio=(surahNum)=>{
-    if(audioObj){audioObj.pause();setAudioObj(null);}
-    if(playingId===surahNum){setPlayingId(null);return;}
-    // Correct URL format for each surah
-    const url=`https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/${surahNum}.mp3`;
+  const stopAudio=()=>{
+    if(currentAudio){currentAudio.pause();currentAudio.src="";}
+    setCurrentAudio(null);setAudioPlaying(null);
+  };
+
+  const playAudio=(url,type)=>{
+    stopAudio();
+    if(audioPlaying===type){return;}
     const a=new Audio(url);
-    a.play().catch(e=>{
-      // Fallback URL
-      const fallback=`https://download.quranicaudio.com/quran/mishaari_raashid_al-3afaasee/${String(surahNum).padStart(3,"0")}.mp3`;
-      const a2=new Audio(fallback);
-      a2.play().catch(()=>alert("Audio unavailable. Please check your internet connection."));
-      a2.onended=()=>{setPlayingId(null);setAudioObj(null);};
-      setAudioObj(a2);
-    });
-    a.onended=()=>{setPlayingId(null);setAudioObj(null);};
-    setAudioObj(a);
-    setPlayingId(surahNum);
+    a.play().catch(()=>{alert("Audio could not play. Check your internet connection.");});
+    a.onended=()=>{setAudioPlaying(null);setCurrentAudio(null);};
+    a.onerror=()=>{setAudioPlaying(null);setCurrentAudio(null);};
+    setCurrentAudio(a);setAudioPlaying(type);
   };
 
-  // Load surah verses from API
-  const loadSurah=async(surah)=>{
-    setOpenSurah(surah);
-    setQuranTab("reading");
-    setVersesLoading(true);
-    setVersesError(false);
-    setSurahVerses([]);
+  const openSurah=async(s)=>{
+    setSelectedSurah(s);setView("reading");
+    setVerses([]);setLoading(true);setLoadError(false);stopAudio();
     try{
-      // Fetch Arabic + English + Urdu in one call
-      const resp=await fetch(
-        `https://api.alquran.cloud/v1/surah/${surah.n}/editions/quran-uthmani,en.asad,ur.jalandhry`
-      );
-      const data=await resp.json();
-      if(data.code===200&&data.data){
-        const arabicAyahs=data.data[0].ayahs;
-        const englishAyahs=data.data[1].ayahs;
-        const urduAyahs=data.data[2].ayahs;
-        const combined=arabicAyahs.map((a,i)=>({
-          n:a.numberInSurah,
-          arabic:a.text,
-          english:englishAyahs[i]?.text||"",
-          urdu:urduAyahs[i]?.text||"",
-        }));
-        setSurahVerses(combined);
-      }else{
-        setVersesError(true);
-      }
-    }catch(e){
-      console.error("Quran API error:",e);
-      setVersesError(true);
-    }finally{
-      setVersesLoading(false);
-    }
+      const r=await fetch(`https://api.alquran.cloud/v1/surah/${s.n}/editions/quran-uthmani,en.sahih,ur.jalandhry`);
+      const d=await r.json();
+      if(d.code===200&&Array.isArray(d.data)&&d.data.length===3){
+        const ar=d.data[0].ayahs,en=d.data[1].ayahs,ur=d.data[2].ayahs;
+        setVerses(ar.map((a,i)=>({n:a.numberInSurah,arabic:a.text,english:en[i]?.text||"",urdu:ur[i]?.text||""})));
+      }else{setLoadError(true);}
+    }catch{setLoadError(true);}
+    finally{setLoading(false);}
   };
 
-  const closeSurah=()=>{
-    setOpenSurah(null);
-    setSurahVerses([]);
-    setQuranTab("surahs");
-  };
-
-  // READING VIEW
-  if(quranTab==="reading"&&openSurah){
+  // ── READING VIEW ────────────────────────────────────────────────────────────
+  if(view==="reading"&&selectedSurah){
+    const arabicAudioUrl=`https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/${selectedSurah.n}.mp3`;
+    const urduAudioUrl=`https://cdn.islamic.network/quran/audio-surah/128/ur.khan/${selectedSurah.n}.mp3`;
     return(
-      <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
-        {/* Header */}
-        <div style={{padding:"12px 14px",background:"linear-gradient(135deg,#1E3A5F,#0D9488)",color:"white",flexShrink:0}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-            <button onClick={closeSurah} style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:8,padding:"6px 12px",color:"white",cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:700}}>← Back</button>
+      <div style={{display:"flex",flexDirection:"column",height:"calc(100dvh - 116px)",overflow:"hidden"}}>
+        <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
+        {/* Surah Header */}
+        <div style={{background:"linear-gradient(135deg,#1E3A5F,#0D9488)",padding:"12px 14px",flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <button onClick={()=>{setView("surahList");stopAudio();}} style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:8,padding:"7px 14px",color:"white",cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:700}}>← Back</button>
             <div style={{flex:1}}>
-              <div style={{fontSize:16,fontWeight:800}}>{openSurah.name}</div>
-              <div style={{fontSize:11,opacity:.7}}>{openSurah.meaning} · {openSurah.verses} verses</div>
+              <div style={{fontSize:16,fontWeight:800,color:"white"}}>{selectedSurah.name}</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,.6)"}}>{selectedSurah.eng} · {selectedSurah.v} verses · {selectedSurah.type}</div>
             </div>
-            <div style={{fontFamily:"'Amiri',serif",fontSize:22,direction:"rtl"}}>{openSurah.arabic}</div>
+            <div style={{fontFamily:"'Amiri',serif",fontSize:24,color:"white",direction:"rtl"}}>{selectedSurah.ar}</div>
           </div>
-          {/* Audio button */}
-          <button onClick={()=>toggleAudio(openSurah.n)} style={{width:"100%",padding:"8px",borderRadius:10,border:"none",background:"rgba(255,255,255,.15)",color:"white",cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-            {playingId===openSurah.n?"⏸ Pause Recitation":"▶ Listen to Full Surah · Al-Afasy"}
-          </button>
+          {/* Audio Controls */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <button onClick={()=>audioPlaying==="arabic"?stopAudio():playAudio(arabicAudioUrl,"arabic")}
+              style={{padding:"8px",borderRadius:10,border:"none",background:audioPlaying==="arabic"?"#EF4444":"rgba(255,255,255,.15)",color:"white",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              {audioPlaying==="arabic"?"⏸ Stop Arabic":"▶ Arabic Recitation"}
+            </button>
+            <button onClick={()=>audioPlaying==="urdu"?stopAudio():playAudio(urduAudioUrl,"urdu")}
+              style={{padding:"8px",borderRadius:10,border:"none",background:audioPlaying==="urdu"?"#EF4444":"rgba(255,255,255,.15)",color:"white",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              {audioPlaying==="urdu"?"⏸ Stop Urdu":"🎧 Urdu Translation"}
+            </button>
+          </div>
         </div>
 
         {/* Verses */}
-        <div style={{flex:1,overflowY:"auto",padding:"12px 14px",background:"var(--bg)",WebkitOverflowScrolling:"touch"}}>
-          {versesLoading&&<div style={{textAlign:"center",padding:"40px 0"}}>
-            <div style={{width:32,height:32,borderRadius:"50%",border:"3px solid var(--border)",borderTopColor:"var(--primary)",animation:"spin .7s linear infinite",margin:"0 auto 12px"}}/>
-            <div style={{fontSize:12,color:"var(--muted)"}}>Loading {openSurah.name}...</div>
+        <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",background:"var(--bg)"}}>
+          {loading&&<div style={{textAlign:"center",padding:"50px 20px"}}>
+            <div style={{width:36,height:36,borderRadius:"50%",border:"3px solid var(--border)",borderTopColor:"var(--primary)",animation:"spin .7s linear infinite",margin:"0 auto 12px"}}/>
+            <div style={{fontSize:13,color:"var(--muted)"}}>Loading {selectedSurah.name}...</div>
           </div>}
 
-          {versesError&&<div style={{textAlign:"center",padding:"30px 0"}}>
-            <div style={{fontSize:32,marginBottom:8}}>📡</div>
-            <div style={{fontSize:13,color:"var(--muted)",marginBottom:12}}>Could not load verses. Check your internet.</div>
-            <button onClick={()=>loadSurah(openSurah)} style={{padding:"8px 20px",borderRadius:10,border:"none",background:"var(--primary)",color:"white",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12}}>Try Again</button>
+          {loadError&&<div style={{textAlign:"center",padding:"50px 20px"}}>
+            <div style={{fontSize:40,marginBottom:10}}>📡</div>
+            <div style={{fontSize:13,color:"var(--muted)",marginBottom:14}}>Could not load. Please check your internet.</div>
+            <button onClick={()=>openSurah(selectedSurah)} style={{padding:"10px 24px",borderRadius:10,border:"none",background:"var(--primary)",color:"white",cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>🔄 Try Again</button>
           </div>}
 
-          {/* Bismillah for all surahs except 9 (At-Tawbah) */}
-          {surahVerses.length>0&&openSurah.n!==9&&openSurah.n!==1&&(
-            <div style={{textAlign:"center",padding:"16px 0 12px",marginBottom:4}}>
-              <div style={{fontFamily:"'Amiri',serif",fontSize:22,color:"var(--primary)",lineHeight:1.8}}>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+          {verses.length>0&&<>
+            {/* Bismillah — except surah 9 */}
+            {selectedSurah.n!==9&&<div style={{textAlign:"center",padding:"20px 16px 10px",borderBottom:"1px solid var(--border)"}}>
+              <div style={{fontFamily:"'Amiri',serif",fontSize:26,color:"var(--primary)",lineHeight:2}}>بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>
               <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>In the name of Allah, the Most Gracious, the Most Merciful</div>
-            </div>
-          )}
+            </div>}
 
-          {surahVerses.map((v)=>(
-            <div key={v.n} style={{...S.card,marginBottom:10,borderLeft:"3px solid var(--primary)"}}>
-              {/* Verse number badge */}
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <div style={{width:28,height:28,borderRadius:"50%",background:"var(--primary)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"white",flexShrink:0}}>{v.n}</div>
-                <div style={{fontSize:10,color:"var(--muted)"}}>Ayah {v.n} · {openSurah.name}</div>
+            {verses.map((v)=>(
+              <div key={v.n} style={{padding:"16px 14px",borderBottom:"1px solid var(--border)",background:v.n%2===0?"var(--card)":"var(--bg)"}}>
+                {/* Verse number */}
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                  <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,var(--primary),var(--primary2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"white",flexShrink:0}}>{v.n}</div>
+                  <div style={{flex:1,height:1,background:"var(--border)"}}/>
+                  <div style={{fontSize:10,color:"var(--muted)",fontWeight:600}}>{selectedSurah.name} {v.n}:{selectedSurah.n}</div>
+                </div>
+                {/* Arabic verse */}
+                <div style={{fontFamily:"'Amiri',serif",fontSize:24,direction:"rtl",textAlign:"right",color:"var(--text)",lineHeight:2.2,marginBottom:12}}>{v.arabic}</div>
+                {/* English */}
+                <div style={{fontSize:13,color:"var(--text2)",lineHeight:1.8,fontStyle:"italic",marginBottom:10,paddingTop:10,borderTop:"1px solid var(--border)"}}>{v.english}</div>
+                {/* Urdu */}
+                {v.urdu&&<div style={{fontSize:14,direction:"rtl",textAlign:"right",color:"var(--primary)",lineHeight:2,fontFamily:"Georgia,serif",paddingTop:8,borderTop:"1px solid var(--border)"}}>{v.urdu}</div>}
               </div>
-              {/* Arabic */}
-              <div style={{fontFamily:"'Amiri',serif",fontSize:22,direction:"rtl",textAlign:"right",color:"var(--text)",lineHeight:2.2,marginBottom:10}}>{v.arabic}</div>
-              {/* English */}
-              <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.8,fontStyle:"italic",marginBottom:8,paddingTop:8,borderTop:"1px solid var(--border)"}}>{v.english}</div>
-              {/* Urdu */}
-              {v.urdu&&<div style={{fontSize:13,direction:"rtl",textAlign:"right",color:"var(--primary)",lineHeight:1.9,fontFamily:"Georgia,serif"}}>{v.urdu}</div>}
-            </div>
-          ))}
+            ))}
 
-          {surahVerses.length>0&&<div style={{textAlign:"center",padding:"16px 0",fontSize:12,color:"var(--muted)"}}>
-            ✨ End of {openSurah.name} · {surahVerses.length} verses
-          </div>}
+            <div style={{textAlign:"center",padding:"20px",fontSize:12,color:"var(--muted)"}}>
+              ✨ End of Surah {selectedSurah.name} — {verses.length} Ayahs
+            </div>
+          </>}
         </div>
-        <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
       </div>
     );
   }
 
-  // MAIN FAITH VIEW
+  // ── SURAH LIST VIEW ─────────────────────────────────────────────────────────
+  if(view==="surahList"){
+    return(
+      <div style={{display:"flex",flexDirection:"column",height:"calc(100dvh - 116px)",overflow:"hidden"}}>
+        <div style={{background:"linear-gradient(135deg,#1E3A5F,#0D9488)",padding:"12px 14px",flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <button onClick={()=>setView("main")} style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:8,padding:"7px 14px",color:"white",cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:700}}>← Back</button>
+            <div style={{fontSize:16,fontWeight:800,color:"white"}}>📖 Holy Quran</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginLeft:"auto"}}>114 Surahs</div>
+          </div>
+          {/* Search */}
+          <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search surah name or number..."
+            style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"none",background:"rgba(255,255,255,.15)",color:"white",fontFamily:"inherit",fontSize:13,outline:"none"}}/>
+          {searchQ&&<div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:6}}>{filtered.length} results</div>}
+        </div>
+
+        <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",background:"var(--bg)"}}>
+          {filtered.map(s=>(
+            <div key={s.n} onClick={()=>openSurah(s)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderBottom:"1px solid var(--border)",cursor:"pointer",background:"var(--card)",marginBottom:2,activeBackground:"var(--card2)"}}>
+              <div style={{width:38,height:38,borderRadius:10,background:"linear-gradient(135deg,var(--primary),var(--primary2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:"white",flexShrink:0}}>{s.n}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:4,marginBottom:2}}>
+                  <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{s.name}</div>
+                  <div style={{fontFamily:"'Amiri',serif",fontSize:18,color:"var(--primary)",flexShrink:0}}>{s.ar}</div>
+                </div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <span style={{fontSize:11,color:"var(--muted)"}}>{s.eng}</span>
+                  <span style={{fontSize:9,background:"var(--card2)",color:"var(--muted)",padding:"1px 6px",borderRadius:6,fontWeight:600}}>{s.type}</span>
+                  <span style={{fontSize:11,color:"var(--muted)",marginLeft:"auto"}}>{s.v} verses</span>
+                </div>
+              </div>
+              <div style={{fontSize:16,color:"var(--muted)"}}>›</div>
+            </div>
+          ))}
+          {filtered.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:"var(--muted)",fontSize:13}}>No surahs found for "{searchQ}"</div>}
+        </div>
+      </div>
+    );
+  }
+
+  // ── MAIN FAITH VIEW ─────────────────────────────────────────────────────────
   return(<div style={S.page}>
     {/* Daily Ayah */}
     {dailyAyah&&<div style={{background:"linear-gradient(135deg,#1E3A5F,#0D9488)",borderRadius:16,padding:18,color:"white",marginBottom:10,position:"relative",overflow:"hidden"}}>
       <div style={{position:"absolute",top:-20,right:-20,width:80,height:80,borderRadius:"50%",background:"rgba(255,255,255,.06)"}}/>
-      <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:1,opacity:.7,marginBottom:10}}>
+      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,opacity:.6,marginBottom:10}}>
         🌟 Today's Ayah · {new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
       </div>
-      <div style={{fontFamily:"'Amiri',serif",fontSize:24,direction:"rtl",textAlign:"right",lineHeight:2,marginBottom:12}}>{dailyAyah.arabic}</div>
-      <div style={{fontSize:13,lineHeight:1.7,opacity:.9,marginBottom:6,fontStyle:"italic"}}>"{dailyAyah.english}"</div>
-      <div style={{fontSize:13,lineHeight:1.8,direction:"rtl",textAlign:"right",fontFamily:"Georgia,serif",marginBottom:10,opacity:.9}}>{dailyAyah.urdu}</div>
-      <div style={{fontSize:10,opacity:.6,fontWeight:700}}>{dailyAyah.ref}</div>
+      <div style={{fontFamily:"'Amiri',serif",fontSize:24,direction:"rtl",textAlign:"right",lineHeight:2,marginBottom:12,color:"white"}}>{dailyAyah.arabic}</div>
+      <div style={{fontSize:13,lineHeight:1.7,opacity:.9,marginBottom:8,fontStyle:"italic"}}>"{dailyAyah.english}"</div>
+      <div style={{fontSize:14,lineHeight:1.9,direction:"rtl",textAlign:"right",fontFamily:"Georgia,serif",marginBottom:10,opacity:.9}}>{dailyAyah.urdu}</div>
+      <div style={{fontSize:10,opacity:.55,fontWeight:700}}>{dailyAyah.ref}</div>
     </div>}
+
+    {/* Open Quran Button */}
+    <button onClick={()=>setView("surahList")} style={{...S.btn(),background:"linear-gradient(135deg,#1E3A5F,#0D9488)",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontSize:15,padding:16}}>
+      <span style={{fontSize:24}}>📖</span>
+      <div style={{textAlign:"left"}}>
+        <div style={{fontWeight:800}}>Open Holy Quran</div>
+        <div style={{fontSize:11,opacity:.8,fontWeight:400}}>114 Surahs · Arabic · English · Urdu · Audio</div>
+      </div>
+    </button>
 
     {/* Prayer Times */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginBottom:10}}>
@@ -901,7 +1024,7 @@ const Faith=()=>{
       <div style={S.card}>
         <div style={{...S.cardT,marginBottom:10}}>🧭 Qibla</div>
         <div style={{textAlign:"center"}}>
-          <div style={{width:110,height:110,borderRadius:"50%",background:"linear-gradient(135deg,#1E3A5F,#0D9488)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",position:"relative"}}>
+          <div style={{width:110,height:110,borderRadius:"50%",background:"linear-gradient(135deg,#1E3A5F,#0D9488)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",position:"relative",boxShadow:"0 6px 20px rgba(30,58,95,.3)"}}>
             <div style={{position:"absolute",inset:8,borderRadius:"50%",border:"1px solid rgba(255,255,255,.2)"}}/>
             <div style={{position:"absolute",top:6,left:"50%",transform:"translateX(-50%)",fontSize:9,color:"rgba(255,255,255,.6)",fontWeight:700}}>N</div>
             <div style={{position:"absolute",bottom:6,left:"50%",transform:"translateX(-50%)",fontSize:9,color:"rgba(255,255,255,.6)",fontWeight:700}}>S</div>
@@ -926,41 +1049,11 @@ const Faith=()=>{
       </div>
     </div>
 
-    {/* Quran Section */}
-    <div style={{...S.card,padding:0,overflow:"hidden"}}>
-      <div style={{padding:"14px 14px 10px",background:"linear-gradient(135deg,#1E3A5F 0%,#0D9488 100%)"}}>
-        <div style={{fontSize:15,fontWeight:800,color:"white",marginBottom:2}}>📖 Holy Quran</div>
-        <div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>Tap ▶ to listen · Tap 📖 to read with translation</div>
-      </div>
-      <div style={{padding:"8px 0"}}>
-        {SURAHS.map((s)=>(
-          <div key={s.n} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderBottom:"1px solid var(--border)"}}>
-            {/* Number */}
-            <div style={{width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,var(--primary),var(--primary2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"white",flexShrink:0}}>{s.n}</div>
-            {/* Info */}
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:4}}>
-                <div style={{fontSize:13,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
-                <div style={{fontFamily:"'Amiri',serif",fontSize:16,color:"var(--primary)",flexShrink:0,direction:"rtl"}}>{s.arabic}</div>
-              </div>
-              <div style={{fontSize:10,color:"var(--muted)",marginTop:1}}>{s.meaning} · {s.verses} verses</div>
-            </div>
-            {/* Read button */}
-            <button onClick={()=>loadSurah(s)} style={{width:32,height:32,borderRadius:8,border:"none",background:"var(--card2)",color:"var(--primary)",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:"1px solid var(--border)"}}>📖</button>
-            {/* Audio button */}
-            <button onClick={()=>toggleAudio(s.n)} style={{width:32,height:32,borderRadius:"50%",border:"none",background:playingId===s.n?"var(--danger)":"var(--primary)",color:"white",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-              {playingId===s.n?"⏸":"▶"}
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-
     {/* Duas */}
-    <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:1,color:"var(--muted)",fontWeight:700,margin:"12px 0 8px"}}>🤲 Daily Duas ({DUAS.length})</div>
+    <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:1,color:"var(--muted)",fontWeight:700,margin:"12px 0 8px"}}>🤲 Daily Duas</div>
     {DUAS.map((d,i)=>(<div key={i} style={{...S.card,borderLeft:"3px solid var(--teal)",marginBottom:8}}>
       <div style={{fontSize:10,textTransform:"uppercase",color:"var(--teal)",fontWeight:800,marginBottom:8}}>{d.t}</div>
-      <div style={{fontFamily:"'Amiri',serif",fontSize:20,direction:"rtl",textAlign:"right",color:"var(--text)",lineHeight:1.9,marginBottom:6}}>{d.ar}</div>
+      <div style={{fontFamily:"'Amiri',serif",fontSize:20,direction:"rtl",textAlign:"right",color:"var(--text)",lineHeight:2,marginBottom:6}}>{d.ar}</div>
       <div style={{fontSize:11,fontStyle:"italic",color:"var(--teal)",marginBottom:4}}>{d.tr}</div>
       <div style={{fontSize:11,color:"var(--muted)"}}>{d.en}</div>
     </div>))}
