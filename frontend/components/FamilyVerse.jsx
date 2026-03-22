@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const API = "https://familyverse-production.up.railway.app";
+const API = "https://familyverse-backend.onrender.com";
 
 const apiFetch = async (method, path, body, token) => {
   const res = await fetch(`${API}/api${path}`, {
