@@ -1,14 +1,9 @@
-// backend/src/routes/notifications.js
-// Add this as a new file in your backend
-
 const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
-const Family = require("../models/Family");
 
 const ONESIGNAL_APP_ID = "f0a96e08-77cb-48fa-989e-70640ff2380f";
-const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY;
 
 const auth = (req) => {
   const token = req.headers.authorization?.split(" ")[1];
@@ -16,64 +11,58 @@ const auth = (req) => {
   return jwt.verify(token, process.env.JWT_SECRET || "secret123");
 };
 
-// Send notification to whole family
-const sendToFamily = async (familyCode, title, message, icon = "🏠", data = {}) => {
-  if (!ONESIGNAL_API_KEY) return;
-  try {
-    await axios.post(
-      "https://api.onesignal.com/notifications",
-      {
-        app_id: ONESIGNAL_APP_ID,
-        filters: [{ field: "tag", key: "familyCode", relation: "=", value: familyCode }],
-        headings: { en: title },
-        contents: { en: message },
-        small_icon: "ic_notification",
-        data: { familyCode, ...data },
-        url: "https://family-verse-umber.vercel.app",
-      },
-      {
-        headers: {
-          "Authorization": `Key ${ONESIGNAL_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-    console.log(`✅ Notification sent to family ${familyCode}`);
-  } catch (e) {
-    console.error("OneSignal error:", e.response?.data || e.message);
-  }
-};
-
-// Register device for notifications
+// Register device — tag with familyCode so we can target them
 router.post("/register", async (req, res) => {
   try {
     const { familyCode, memberName } = auth(req);
     const { playerId } = req.body;
-    if (!playerId) return res.status(400).json({ error: "No player ID" });
 
-    // Tag this device with family code so we can send family-specific notifications
-    await axios.put(
-      `https://api.onesignal.com/apps/${ONESIGNAL_APP_ID}/users/by/onesignal_id/${playerId}`,
+    if (!playerId) return res.status(400).json({ error: "No player ID" });
+    if (!process.env.ONESIGNAL_API_KEY) return res.json({ success: true, note: "No API key" });
+
+    console.log(`📱 Registering ${memberName} (${familyCode}) - Player: ${playerId}`);
+
+    // Tag the device with familyCode and memberName
+    const resp = await axios.patch(
+      `https://api.onesignal.com/apps/${ONESIGNAL_APP_ID}/subscriptions/${playerId}`,
       {
-        properties: {
-          tags: {
-            familyCode,
-            memberName,
-          },
-        },
+        subscription: {
+          type: "ChromePush",
+        }
       },
       {
         headers: {
-          "Authorization": `Key ${ONESIGNAL_API_KEY}`,
+          "Authorization": `Key ${process.env.ONESIGNAL_API_KEY}`,
           "Content-Type": "application/json",
         },
       }
-    );
+    ).catch(() => null);
 
-    console.log(`✅ Device registered for ${memberName} in family ${familyCode}`);
-    res.json({ success: true });
+    // Also set tags via user identity
+    await axios.post(
+      `https://api.onesignal.com/apps/${ONESIGNAL_APP_ID}/users`,
+      {
+        identity: { external_id: `${familyCode}_${memberName}` },
+        subscriptions: [{ type: "Push", token: playerId }],
+        properties: {
+          tags: {
+            familyCode: familyCode,
+            memberName: memberName,
+          }
+        }
+      },
+      {
+        headers: {
+          "Authorization": `Key ${process.env.ONESIGNAL_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    ).catch(e => console.log("User tag error:", e.response?.data));
+
+    console.log(`✅ Registered ${memberName} for push notifications`);
+    res.json({ success: true, playerId });
   } catch (e) {
-    console.error("Register error:", e.response?.data || e.message);
+    console.error("Register error:", e.message);
     res.status(500).json({ error: e.message });
   }
 });
@@ -82,15 +71,31 @@ router.post("/register", async (req, res) => {
 router.post("/test", async (req, res) => {
   try {
     const { familyCode, memberName } = auth(req);
-    await sendToFamily(
-      familyCode,
-      "🏠 FamilyVerse",
-      `Test notification working! Hello ${memberName}! 🎉`
+    if (!process.env.ONESIGNAL_API_KEY) return res.status(400).json({ error: "ONESIGNAL_API_KEY not set in Render!" });
+
+    // Send to ALL subscribers first (for testing)
+    const resp = await axios.post(
+      "https://api.onesignal.com/notifications",
+      {
+        app_id: ONESIGNAL_APP_ID,
+        included_segments: ["All"],
+        headings: { en: "🏠 FamilyVerse Test" },
+        contents: { en: `✅ Notifications working! Hello ${memberName}! 🎉` },
+        url: "https://family-verse-umber.vercel.app",
+      },
+      {
+        headers: {
+          "Authorization": `Key ${process.env.ONESIGNAL_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
     );
+    console.log("Test notification sent:", resp.data);
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error("Test notif error:", e.response?.data || e.message);
+    res.status(500).json({ error: e.response?.data?.errors || e.message });
   }
 });
 
-module.exports = { router, sendToFamily };
+module.exports = { router };
