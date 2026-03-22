@@ -5,24 +5,21 @@ const axios = require("axios");
 
 const ONESIGNAL_APP_ID = "f0a96e08-77cb-48fa-989e-70640ff2380f";
 
-// Send push notification via OneSignal
-const sendPush = async (familyCode, title, body, excludeName) => {
-  if (!process.env.ONESIGNAL_API_KEY) return;
+const sendPush = async (title, body, excludeName, url = "https://family-verse-umber.vercel.app") => {
+  if (!process.env.ONESIGNAL_API_KEY) {
+    console.log("⚠️ ONESIGNAL_API_KEY not set — skipping push");
+    return;
+  }
   try {
-    await axios.post(
+    const resp = await axios.post(
       "https://api.onesignal.com/notifications",
       {
         app_id: ONESIGNAL_APP_ID,
-        filters: [
-          { field: "tag", key: "familyCode", relation: "=", value: familyCode },
-          { operator: "AND" },
-          { field: "tag", key: "memberName", relation: "!=", value: excludeName },
-        ],
+        included_segments: ["All"], // Send to all subscribed users
         headings: { en: title },
         contents: { en: body },
-        url: "https://family-verse-umber.vercel.app",
+        url,
         android_accent_color: "FF6366F1",
-        small_icon: "ic_notification",
       },
       {
         headers: {
@@ -31,8 +28,9 @@ const sendPush = async (familyCode, title, body, excludeName) => {
         },
       }
     );
+    console.log(`✅ Push sent! Recipients: ${resp.data?.recipients || 0}`);
   } catch (e) {
-    console.log("Push notification skipped:", e.response?.data?.errors || e.message);
+    console.error("Push error:", e.response?.data?.errors || e.message);
   }
 };
 
@@ -60,7 +58,7 @@ module.exports = (io) => {
         { $set: { "members.$.online": true, "members.$.socketId": socket.id } }
       );
       socket.to(familyCode).emit("memberOnline", { name: memberName });
-    } catch (e) { console.error("Online update error:", e.message); }
+    } catch (e) { console.error("Online update:", e.message); }
 
     // Send message
     socket.on("sendMessage", async (data) => {
@@ -72,11 +70,11 @@ module.exports = (io) => {
           senderEmoji: data.senderEmoji || "👤",
           text: data.text,
           type: data.type || "text",
-          imageUrl: data.imageUrl,
         });
         await msg.save();
 
-        const msgData = {
+        // Emit to all connected family members
+        io.to(familyCode).emit("newMessage", {
           _id: msg._id,
           chatId: msg.chatId,
           sender: msg.sender,
@@ -85,22 +83,17 @@ module.exports = (io) => {
           type: msg.type,
           timestamp: msg.timestamp,
           read: false,
-        };
+        });
 
-        // Send to all connected family members
-        io.to(familyCode).emit("newMessage", msgData);
-
-        // Send push notification to offline members
-        const chatName = data.chatId === "group" ? "Family Chat" : memberName;
-        const preview = data.text?.length > 50 ? data.text.substring(0, 50) + "..." : data.text;
+        // Push notification for offline members
+        const preview = data.text?.length > 60 ? data.text.substring(0, 60) + "..." : data.text;
         await sendPush(
-          familyCode,
           `${msg.senderEmoji} ${memberName}`,
-          preview || "Sent a message",
-          memberName // exclude sender
+          preview || "Sent a message 💬",
+          memberName
         );
       } catch (e) {
-        console.error("Send message error:", e.message);
+        console.error("Message error:", e.message);
         socket.emit("messageError", { error: "Failed to send" });
       }
     });
@@ -118,39 +111,26 @@ module.exports = (io) => {
     });
 
     socket.on("sosAlert", (data) => {
-      io.to(familyCode).emit("sosReceived", { from: memberName, location: data.location, timestamp: new Date() });
-      // Push notification for SOS — highest priority!
+      io.to(familyCode).emit("sosReceived", { from: memberName, location: data.location });
+      // URGENT push for SOS
       sendPush(
-        familyCode,
         "🚨 EMERGENCY SOS ALERT!",
-        `${memberName} needs help urgently! Open FamilyVerse now!`,
+        `${memberName} needs urgent help! Open FamilyVerse now!`,
         memberName
       );
     });
 
-    // WebRTC call signaling
     socket.on("callOffer", (data) => {
       socket.to(`${familyCode}_${data.to}`).emit("incomingCall", {
-        from: memberName, fromEmoji: data.fromEmoji, type: data.type, offer: data.offer,
+        from: memberName, fromEmoji: data.fromEmoji, type: data.type,
       });
-      sendPush(familyCode, `📞 Incoming Call`, `${memberName} is calling you on FamilyVerse!`, memberName);
+      sendPush(`📞 Incoming ${data.type} Call`, `${memberName} is calling you!`, memberName);
     });
 
-    socket.on("callAnswer", (data) => {
-      socket.to(`${familyCode}_${data.to}`).emit("callAnswered", { answer: data.answer });
-    });
-
-    socket.on("callReject", (data) => {
-      socket.to(`${familyCode}_${data.to}`).emit("callRejected", { from: memberName });
-    });
-
-    socket.on("iceCandidate", (data) => {
-      socket.to(`${familyCode}_${data.to}`).emit("iceCandidate", { candidate: data.candidate });
-    });
-
-    socket.on("endCall", (data) => {
-      socket.to(`${familyCode}_${data.to}`).emit("callEnded", { from: memberName });
-    });
+    socket.on("callAnswer", (data) => socket.to(`${familyCode}_${data.to}`).emit("callAnswered", { answer: data.answer }));
+    socket.on("callReject", (data) => socket.to(`${familyCode}_${data.to}`).emit("callRejected", { from: memberName }));
+    socket.on("iceCandidate", (data) => socket.to(`${familyCode}_${data.to}`).emit("iceCandidate", { candidate: data.candidate }));
+    socket.on("endCall", (data) => socket.to(`${familyCode}_${data.to}`).emit("callEnded", { from: memberName }));
 
     socket.on("disconnect", async () => {
       console.log(`❌ ${memberName} disconnected`);
@@ -160,7 +140,7 @@ module.exports = (io) => {
           { $set: { "members.$.online": false, "members.$.lastSeen": new Date(), "members.$.socketId": null } }
         );
         socket.to(familyCode).emit("memberOffline", { name: memberName });
-      } catch (e) { console.error("Offline update error:", e.message); }
+      } catch (e) { console.error("Offline update:", e.message); }
     });
   });
 };
