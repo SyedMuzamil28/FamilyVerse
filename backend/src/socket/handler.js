@@ -1,6 +1,40 @@
 const jwt = require("jsonwebtoken");
 const Message = require("../models/Message");
 const Family = require("../models/Family");
+const axios = require("axios");
+
+const ONESIGNAL_APP_ID = "f0a96e08-77cb-48fa-989e-70640ff2380f";
+
+// Send push notification via OneSignal
+const sendPush = async (familyCode, title, body, excludeName) => {
+  if (!process.env.ONESIGNAL_API_KEY) return;
+  try {
+    await axios.post(
+      "https://api.onesignal.com/notifications",
+      {
+        app_id: ONESIGNAL_APP_ID,
+        filters: [
+          { field: "tag", key: "familyCode", relation: "=", value: familyCode },
+          { operator: "AND" },
+          { field: "tag", key: "memberName", relation: "!=", value: excludeName },
+        ],
+        headings: { en: title },
+        contents: { en: body },
+        url: "https://family-verse-umber.vercel.app",
+        android_accent_color: "FF6366F1",
+        small_icon: "ic_notification",
+      },
+      {
+        headers: {
+          "Authorization": `Key ${process.env.ONESIGNAL_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  } catch (e) {
+    console.log("Push notification skipped:", e.response?.data?.errors || e.message);
+  }
+};
 
 module.exports = (io) => {
   io.use((socket, next) => {
@@ -42,7 +76,7 @@ module.exports = (io) => {
         });
         await msg.save();
 
-        io.to(familyCode).emit("newMessage", {
+        const msgData = {
           _id: msg._id,
           chatId: msg.chatId,
           sender: msg.sender,
@@ -51,10 +85,23 @@ module.exports = (io) => {
           type: msg.type,
           timestamp: msg.timestamp,
           read: false,
-        });
+        };
+
+        // Send to all connected family members
+        io.to(familyCode).emit("newMessage", msgData);
+
+        // Send push notification to offline members
+        const chatName = data.chatId === "group" ? "Family Chat" : memberName;
+        const preview = data.text?.length > 50 ? data.text.substring(0, 50) + "..." : data.text;
+        await sendPush(
+          familyCode,
+          `${msg.senderEmoji} ${memberName}`,
+          preview || "Sent a message",
+          memberName // exclude sender
+        );
       } catch (e) {
         console.error("Send message error:", e.message);
-        socket.emit("messageError", { error: "Failed to send message" });
+        socket.emit("messageError", { error: "Failed to send" });
       }
     });
 
@@ -72,6 +119,37 @@ module.exports = (io) => {
 
     socket.on("sosAlert", (data) => {
       io.to(familyCode).emit("sosReceived", { from: memberName, location: data.location, timestamp: new Date() });
+      // Push notification for SOS — highest priority!
+      sendPush(
+        familyCode,
+        "🚨 EMERGENCY SOS ALERT!",
+        `${memberName} needs help urgently! Open FamilyVerse now!`,
+        memberName
+      );
+    });
+
+    // WebRTC call signaling
+    socket.on("callOffer", (data) => {
+      socket.to(`${familyCode}_${data.to}`).emit("incomingCall", {
+        from: memberName, fromEmoji: data.fromEmoji, type: data.type, offer: data.offer,
+      });
+      sendPush(familyCode, `📞 Incoming Call`, `${memberName} is calling you on FamilyVerse!`, memberName);
+    });
+
+    socket.on("callAnswer", (data) => {
+      socket.to(`${familyCode}_${data.to}`).emit("callAnswered", { answer: data.answer });
+    });
+
+    socket.on("callReject", (data) => {
+      socket.to(`${familyCode}_${data.to}`).emit("callRejected", { from: memberName });
+    });
+
+    socket.on("iceCandidate", (data) => {
+      socket.to(`${familyCode}_${data.to}`).emit("iceCandidate", { candidate: data.candidate });
+    });
+
+    socket.on("endCall", (data) => {
+      socket.to(`${familyCode}_${data.to}`).emit("callEnded", { from: memberName });
     });
 
     socket.on("disconnect", async () => {
