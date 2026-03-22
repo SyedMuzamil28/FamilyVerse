@@ -63,8 +63,74 @@ function DrawingBoard({dark}){
   </div>);
 }
 
+
+// ── ONBOARDING ───────────────────────────────────────────────────────────────
+function OnboardingSlides({ onDone }) {
+  const [slide, setSlide] = useState(0);
+  const SLIDES = [
+    {
+      bg:"linear-gradient(135deg,#1E3A5F,#0D9488)",
+      icon:"🏠",title:"Welcome to FamilyVerse",
+      sub:"Your private family universe",
+      desc:"One app for your whole family — health, chat, faith, memories and safety. All in one private place. Only your family can access it.",
+    },
+    {
+      bg:"linear-gradient(135deg,#6366F1,#8B5CF6)",
+      icon:"✨",title:"Everything In One Place",
+      sub:"6 powerful features",
+      features:[{e:"💬",t:"Real-time Family Chat"},{e:"❤️",t:"Health & Medicine"},{e:"☪️",t:"Prayer Times & Qibla"},{e:"🤖",t:"AI Health Assistant"},{e:"📸",t:"Memory Capsule"},{e:"🆘",t:"Emergency SOS"}],
+    },
+    {
+      bg:"linear-gradient(135deg,#0D9488,#22C55E)",
+      icon:"🔒",title:"100% Private & Secure",
+      sub:"Only your family can join",
+      desc:"Your family gets a secret invite code. No strangers. No ads. No one reads your data. More private than WhatsApp.",
+    },
+    {
+      bg:"linear-gradient(135deg,#F59E0B,#EF4444)",
+      icon:"🚀",title:"Ready to Connect!",
+      sub:"Takes 1 minute to set up",
+      steps:[{n:"1",t:"Create your family"},{n:"2",t:"Share the invite code"},{n:"3",t:"Family joins instantly"},{n:"4",t:"Start using together! 🎉"}],
+    },
+  ];
+  const s=SLIDES[slide];
+  const isLast=slide===SLIDES.length-1;
+  return(
+    <div style={{position:"fixed",inset:0,background:s.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"30px 24px",zIndex:2000}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}} .ob-anim{animation:fadeUp .35s ease;}`}</style>
+      <button onClick={onDone} style={{position:"absolute",top:50,right:20,background:"rgba(255,255,255,.2)",border:"none",color:"white",padding:"6px 16px",borderRadius:20,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Skip</button>
+      <div className="ob-anim" key={slide} style={{textAlign:"center",maxWidth:340,width:"100%"}}>
+        <div style={{fontSize:72,marginBottom:16,lineHeight:1}}>{s.icon}</div>
+        <div style={{fontSize:24,fontWeight:800,color:"white",marginBottom:6,lineHeight:1.2}}>{s.title}</div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,.7)",marginBottom:24}}>{s.sub}</div>
+        {s.desc&&<div style={{fontSize:14,color:"rgba(255,255,255,.9)",lineHeight:1.8,background:"rgba(255,255,255,.12)",borderRadius:16,padding:"16px 20px"}}>{s.desc}</div>}
+        {s.features&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {s.features.map((f,i)=><div key={i} style={{background:"rgba(255,255,255,.15)",borderRadius:14,padding:"12px 10px",display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:22}}>{f.e}</span><span style={{fontSize:12,fontWeight:600,color:"white",textAlign:"left"}}>{f.t}</span>
+          </div>)}
+        </div>}
+        {s.steps&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {s.steps.map((st,i)=><div key={i} style={{background:"rgba(255,255,255,.15)",borderRadius:14,padding:"12px 16px",display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:"white",flexShrink:0}}>{st.n}</div>
+            <span style={{fontSize:14,fontWeight:600,color:"white"}}>{st.t}</span>
+          </div>)}
+        </div>}
+      </div>
+      <div style={{position:"absolute",bottom:50,left:24,right:24}}>
+        <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:20}}>
+          {SLIDES.map((_,i)=><div key={i} onClick={()=>setSlide(i)} style={{width:i===slide?24:8,height:8,borderRadius:4,background:i===slide?"white":"rgba(255,255,255,.35)",transition:"all .3s",cursor:"pointer"}}/>)}
+        </div>
+        <button onClick={()=>isLast?onDone():setSlide(s=>s+1)} style={{width:"100%",padding:"15px 20px",borderRadius:14,border:"none",background:"white",color:"#1E3A5F",fontFamily:"inherit",fontWeight:800,fontSize:16,cursor:"pointer",boxShadow:"0 4px 20px rgba(0,0,0,.2)"}}>
+          {isLast?"Let's Get Started! 🚀":"Next →"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function FamilyVerse(){
   const[mounted,setMounted]=useState(false);
+  const[showOnboarding,setShowOnboarding]=useState(false);
   const[dark,setDark]=useState(false);
   const[session,setSession]=useState(null);
   const[obMode,setObMode]=useState("create");
@@ -121,6 +187,7 @@ export default function FamilyVerse(){
     setRamadan(LS.get("ramadan",Array(30).fill("unfasted")));
     const sc=LS.get("challenges",null);if(sc)setChallenges(sc);
     if(sess)setSession(sess);
+    if(!LS.get("ob_done",false))setShowOnboarding(true);
   },[]);
 
   useEffect(()=>{if(mounted)LS.set("dark",dark);},[dark,mounted]);
@@ -300,6 +367,8 @@ export default function FamilyVerse(){
     }catch{setAiResponse("AI unavailable. Make sure ANTHROPIC_API_KEY is set in Railway variables.");}
     finally{setAiLoading(false);}
   };
+
+  const finishOnboarding=()=>{LS.set("ob_done",true);setShowOnboarding(false);};
 
   const EMOJIS=["❤️","😊","🥰","😂","🙏","🌙","✨","🎉","💪","👍","🤲","🌹","💝","🍕","🏠","⭐"];
   const NAV=[{id:"dashboard",icon:"🏠",l:"Home"},{id:"health",icon:"❤️",l:"Health"},{id:"faith",icon:"☪️",l:"Faith"},{id:"kids",icon:"⭐",l:"Kids"},{id:"chat",icon:"💬",l:"Chat",badge:unreadMsgs},{id:"memories",icon:"📸",l:"Memories"},{id:"emergency",icon:"🆘",l:"SOS"},{id:"settings",icon:"⚙️",l:"More"}];
@@ -519,129 +588,33 @@ export default function FamilyVerse(){
     <div style={{textAlign:"center",padding:"14px 0",fontSize:11,color:"var(--muted)"}}>Crafted with ❤️ by <em>Syed Muzamil</em></div>
   </div>);
 
-  // ── PASTE THIS INSIDE YOUR Health() COMPONENT IN FamilyVerse.jsx ──
-// Replace your existing Health() function with this complete version
-
-const Health=()=>{
-  const[reportLoading,setReportLoading]=useState(false);
-  const[reportAnalysis,setReportAnalysis]=useState("");
-  const[reportName,setReportName]=useState("");
-  const[reportNote,setReportNote]=useState("");
-  const fileRef=useRef(null);
-
-  const handleFileUpload=async(e)=>{
-    const file=e.target.files[0];
-    if(!file)return;
-    const maxSize=5*1024*1024; // 5MB
-    if(file.size>maxSize)return alert("File too large! Max 5MB please.");
-    const allowed=["application/pdf","image/jpeg","image/png","image/jpg"];
-    if(!allowed.includes(file.type))return alert("Only PDF, JPG, PNG files allowed!");
-
-    setReportName(file.name);
-    setReportLoading(true);
-    setReportAnalysis("");
-
-    try{
-      // Convert to base64
-      const base64=await new Promise((resolve,reject)=>{
-        const reader=new FileReader();
-        reader.onload=()=>resolve(reader.result.split(",")[1]);
-        reader.onerror=reject;
-        reader.readAsDataURL(file);
-      });
-
-      const data=await apiFetch("POST","/health/analyze-report",{
-        fileData:base64,
-        fileType:file.type,
-        fileName:file.name,
-        note:reportNote,
-        member:me.name,
-      },T);
-
-      setReportAnalysis(data.analysis);
-      // Refresh health logs to show the new entry
-      const logs=await apiFetch("GET","/health/logs",null,T);
-      setHealthLogs(logs||[]);
-    }catch(e){
-      setReportAnalysis("❌ Error: "+e.message);
-    }finally{
-      setReportLoading(false);
-      if(fileRef.current)fileRef.current.value="";
-    }
-  };
-
-  return(<div style={S.page}>
-    {/* AI Chat Assistant */}
+  const Health=()=>(<div style={S.page}>
+    {/* AI Assistant - properly controlled input */}
     <div style={{background:"linear-gradient(135deg,var(--primary),var(--primary2))",borderRadius:16,padding:16,color:"white",marginBottom:10}}>
       <div style={{fontSize:15,fontWeight:800,marginBottom:4}}>🤖 AI Health Assistant</div>
-      <div style={{fontSize:12,opacity:.8,marginBottom:10}}>Ask about symptoms, medications, or get health advice.</div>
+      <div style={{fontSize:12,opacity:.8,marginBottom:10}}>Ask about symptoms, medications, or health readings.</div>
       <div style={{display:"flex",gap:8}}>
-        <input value={aiQuery} onChange={e=>setAiQuery(e.target.value)} onKeyDown={e=>e.key==="Enter"&&askAI()} placeholder="e.g. blood sugar 145, what to do?"
-          style={{flex:1,padding:"11px 13px",borderRadius:10,border:"none",background:"rgba(255,255,255,.15)",color:"white",fontFamily:"inherit",fontSize:13,outline:"none"}}/>
+        <input
+          value={aiQuery}
+          onChange={e=>setAiQuery(e.target.value)}
+          onKeyDown={e=>{if(e.key==="Enter")askAI();}}
+          placeholder="e.g. blood sugar 145, what to do?"
+          style={{flex:1,padding:"11px 13px",borderRadius:10,border:"none",background:"rgba(255,255,255,.15)",color:"white",fontFamily:"inherit",fontSize:13,outline:"none"}}
+        />
         <button onClick={askAI} disabled={aiLoading} style={{padding:"11px 16px",borderRadius:10,border:"none",background:"#F59E0B",color:"white",fontFamily:"inherit",fontWeight:700,fontSize:13,cursor:"pointer",flexShrink:0}}>{aiLoading?"...":"Ask 🤖"}</button>
       </div>
       {aiResponse&&<div style={{background:"rgba(255,255,255,.12)",borderRadius:10,padding:12,marginTop:10,fontSize:13,lineHeight:1.7}}>🤖 {aiResponse}</div>}
     </div>
-
-    {/* 🆕 REPORT UPLOAD SECTION */}
-    <div style={{...S.card,border:"2px dashed var(--primary)",background:"var(--card)"}}>
-      <div style={{fontSize:15,fontWeight:800,color:"var(--text)",marginBottom:4}}>📄 Upload Medical Report</div>
-      <div style={{fontSize:12,color:"var(--muted)",marginBottom:12}}>Upload blood test, X-ray, or any medical report — AI will explain it in simple language!</div>
-
-      {/* Note field */}
-      <div style={{fontSize:11,fontWeight:600,color:"var(--text2)",marginBottom:4}}>Add a note (optional)</div>
-      <input style={{...S.inp,marginBottom:10}} placeholder="e.g. This is my diabetes checkup report" value={reportNote} onChange={e=>setReportNote(e.target.value)}/>
-
-      {/* Upload button */}
-      <input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{display:"none"}} onChange={handleFileUpload}/>
-      <button onClick={()=>fileRef.current?.click()} disabled={reportLoading}
-        style={{...S.btn(),background:reportLoading?"var(--muted)":"linear-gradient(135deg,var(--primary),var(--primary2))",marginBottom:reportAnalysis?12:0}}>
-        {reportLoading?"🔄 Analyzing... Please wait...":"📤 Upload Report (PDF/Image)"}
-      </button>
-
-      {/* Loading state */}
-      {reportLoading&&<div style={{textAlign:"center",padding:"12px 0",color:"var(--muted)"}}>
-        <div style={{fontSize:24,marginBottom:6}}>🤖</div>
-        <div style={{fontSize:12}}>Claude AI is reading your report...</div>
-        <div style={{fontSize:11,opacity:.6,marginTop:3}}>This may take 10-20 seconds</div>
-      </div>}
-
-      {/* Analysis result */}
-      {reportAnalysis&&!reportLoading&&<div>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-          <div style={{fontSize:16}}>📊</div>
-          <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>Analysis: {reportName}</div>
-        </div>
-        <div style={{background:"var(--card2)",borderRadius:12,padding:14,fontSize:13,lineHeight:1.8,color:"var(--text)",whiteSpace:"pre-wrap",border:"1px solid var(--border)"}}>
-          {reportAnalysis}
-        </div>
-        <div style={{fontSize:10,color:"var(--muted)",marginTop:8,padding:"6px 10px",background:"#FEF3C7",borderRadius:8,border:"1px solid #FCD34D"}}>
-          ⚠️ AI analysis is for guidance only. Always consult a real doctor for medical decisions.
-        </div>
-        <button onClick={()=>{setReportAnalysis("");setReportName("");setReportNote("");}} style={{...S.btn(),background:"var(--card2)",color:"var(--text)",border:"1px solid var(--border)",marginTop:8,fontSize:12}}>
-          Analyze Another Report 📄
-        </button>
-      </div>}
-    </div>
-
-    {/* Stats */}
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-      {[{l:"Blood Pressure",v:healthLogs.find(l=>l.bloodPressure)?.bloodPressure||"—",u:"mmHg",e:"🫀",g:"linear-gradient(135deg,#EF4444,#DC2626)",p:65},
-        {l:"Blood Sugar",v:healthLogs.find(l=>l.bloodSugar)?.bloodSugar||"—",u:"mg/dL",e:"🩸",g:"linear-gradient(135deg,#F59E0B,#D97706)",p:55},
-        {l:"Water Today",v:`${water}/8`,u:"Glasses",e:"💧",g:"linear-gradient(135deg,#0EA5E9,#0284C7)",p:water*12.5},
-        {l:"Reports",v:healthLogs.filter(l=>l.category==="report").length,u:"Uploaded",e:"📄",g:"linear-gradient(135deg,#8B5CF6,#7C3AED)",p:50}
-      ].map(hc=>(
-        <div key={hc.l} style={{background:hc.g,borderRadius:14,padding:14,color:"white",position:"relative",overflow:"hidden"}}>
-          <div style={{fontSize:9,opacity:.7,textTransform:"uppercase"}}>{hc.l}</div>
-          <div style={{fontSize:22,fontWeight:800,margin:"3px 0 1px"}}>{hc.v}</div>
-          <div style={{fontSize:10,opacity:.6}}>{hc.u}</div>
-          <div style={{position:"absolute",right:10,top:10,fontSize:20,opacity:.2}}>{hc.e}</div>
-          <div style={{background:"rgba(0,0,0,.15)",borderRadius:10,height:4,marginTop:8,overflow:"hidden"}}><div style={{height:"100%",borderRadius:10,background:"rgba(255,255,255,.6)",width:`${Math.min(100,hc.p||0)}%`}}/></div>
-        </div>
-      ))}
+      {[{l:"Blood Pressure",v:healthLogs.find(l=>l.bloodPressure)?.bloodPressure||"—",u:"mmHg",e:"🫀",g:"linear-gradient(135deg,#EF4444,#DC2626)",p:65},{l:"Blood Sugar",v:healthLogs.find(l=>l.bloodSugar)?.bloodSugar||"—",u:"mg/dL",e:"🩸",g:"linear-gradient(135deg,#F59E0B,#D97706)",p:55},{l:"Water Today",v:`${water}/8`,u:"Glasses",e:"💧",g:"linear-gradient(135deg,#0EA5E9,#0284C7)",p:water*12.5},{l:"Medicines",v:`${medicines.filter(m=>m.taken).length}/${medicines.length}`,u:"Taken",e:"💊",g:"linear-gradient(135deg,#22C55E,#16A34A)",p:medicines.length?(medicines.filter(m=>m.taken).length/medicines.length)*100:0}].map(hc=>(
+      <div key={hc.l} style={{background:hc.g,borderRadius:14,padding:14,color:"white",position:"relative",overflow:"hidden"}}>
+        <div style={{fontSize:9,opacity:.7,textTransform:"uppercase"}}>{hc.l}</div>
+        <div style={{fontSize:22,fontWeight:800,margin:"3px 0 1px"}}>{hc.v}</div>
+        <div style={{fontSize:10,opacity:.6}}>{hc.u}</div>
+        <div style={{position:"absolute",right:10,top:10,fontSize:20,opacity:.2}}>{hc.e}</div>
+        <div style={{background:"rgba(0,0,0,.15)",borderRadius:10,height:4,marginTop:8,overflow:"hidden"}}><div style={{height:"100%",borderRadius:10,background:"rgba(255,255,255,.6)",width:`${Math.min(100,hc.p||0)}%`}}/></div>
+      </div>))}
     </div>
-
-    {/* Water tracker */}
     <div style={S.card}>
       <div style={S.cardHd}><div style={S.cardT}>💧 Water Tracker</div><span style={{fontSize:11,color:"#0EA5E9",fontWeight:700}}>{water}/8</span></div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(8,1fr)",gap:5,marginBottom:6}}>
@@ -649,8 +622,6 @@ const Health=()=>{
       </div>
       <div style={{textAlign:"center",fontSize:11,color:"var(--muted)"}}>{water>=8?"🎉 Goal achieved!!":`${8-water} more to go`}</div>
     </div>
-
-    {/* Medicines */}
     <div style={S.card}>
       <div style={S.cardHd}><div style={S.cardT}>💊 Medicines</div><button style={S.lnk} onClick={()=>setShowAddMed(true)}>+ Add</button></div>
       {medicines.length===0?<div style={{textAlign:"center",padding:"12px 0",color:"var(--muted)",fontSize:12}}>No medicines<br/><button style={{...S.btn(),width:"auto",padding:"7px 16px",fontSize:12,marginTop:8}} onClick={()=>setShowAddMed(true)}>+ Add</button></div>:
@@ -661,26 +632,16 @@ const Health=()=>{
           style={{fontSize:10,fontWeight:700,padding:"5px 10px",borderRadius:20,border:"none",cursor:"pointer",background:m.taken?"#DCFCE7":"#FEF3C7",color:m.taken?"#16A34A":"#92400E",flexShrink:0,fontFamily:"inherit"}}>{m.taken?"✓ Taken":"Mark Taken"}</button>
       </div>))}
     </div>
-
-    {/* Health logs with report entries highlighted */}
     <div style={S.card}>
-      <div style={S.cardHd}><div style={S.cardT}>📋 Health History</div><button style={S.lnk} onClick={()=>setShowAddLog(true)}>+ Add</button></div>
+      <div style={S.cardHd}><div style={S.cardT}>📋 Health Log</div><button style={S.lnk} onClick={()=>setShowAddLog(true)}>+ Add</button></div>
       {healthLogs.length===0?<div style={{textAlign:"center",padding:"10px 0",color:"var(--muted)",fontSize:12}}>No logs yet<br/><button style={{...S.btn(),width:"auto",padding:"7px 16px",fontSize:12,marginTop:8}} onClick={()=>setShowAddLog(true)}>+ Add</button></div>:
-      healthLogs.slice(0,8).map(l=>(<div key={l._id} style={{padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-          <span style={{fontSize:14}}>{l.category==="report"?"📄":"📋"}</span>
-          <div style={{fontSize:12,fontWeight:600,color:"var(--text)",flex:1}}>{l.text}</div>
-          {l.category==="report"&&<span style={{fontSize:9,background:"#EDE9FE",color:"#7C3AED",padding:"2px 6px",borderRadius:6,fontWeight:700,flexShrink:0}}>AI REPORT</span>}
-        </div>
-        {(l.bloodSugar||l.bloodPressure)&&<div style={{fontSize:10,color:"var(--teal)",marginBottom:3}}>{l.bloodSugar&&`Sugar: ${l.bloodSugar} `}{l.bloodPressure&&`BP: ${l.bloodPressure}`}</div>}
-        <div style={{fontSize:10,color:"var(--muted)"}}>{l.member} · {new Date(l.date).toLocaleDateString()}</div>
-        {l.aiAnalysis&&<div style={{marginTop:6,background:l.category==="report"?"#EDE9FE":"#F0FDF4",borderRadius:10,padding:"8px 12px",fontSize:12,color:l.category==="report"?"#5B21B6":"#166534",lineHeight:1.7,whiteSpace:"pre-wrap"}}>
-          {l.category==="report"?"📊 ":"🤖 "}{l.aiAnalysis}
-        </div>}
+      healthLogs.slice(0,5).map(l=>(<div key={l._id} style={{padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
+        <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{l.text}</div>
+        {(l.bloodSugar||l.bloodPressure)&&<div style={{fontSize:10,color:"var(--teal)",marginTop:2}}>{l.bloodSugar&&`Sugar: ${l.bloodSugar} `}{l.bloodPressure&&`BP: ${l.bloodPressure}`}</div>}
+        <div style={{fontSize:10,color:"var(--muted)",marginTop:1}}>{l.member} · {new Date(l.date).toLocaleDateString()}</div>
+        {l.aiAnalysis&&<div style={{marginTop:5,background:"#EDE9FE",borderRadius:8,padding:"6px 10px",fontSize:11,color:"#5B21B6",lineHeight:1.6}}>🤖 {l.aiAnalysis}</div>}
       </div>))}
     </div>
-
-    {/* Add medicine modal */}
     {showAddMed&&<div style={S.modal} onClick={e=>e.target===e.currentTarget&&setShowAddMed(false)}>
       <div style={S.modalBox}>
         <div style={{fontSize:16,fontWeight:800,color:"var(--text)",marginBottom:14}}>💊 Add Medicine</div>
@@ -688,13 +649,11 @@ const Health=()=>{
         <button style={S.btn()} onClick={()=>{if(!fmMed.name.trim())return alert("Enter name!");apiFetch("POST","/health/medicines",{...fmMed,member:fmMed.member||me.name},T).then(m=>{setMedicines(p=>[...p,m]);setFmMed({name:"",time:"",member:""});setShowAddMed(false);}).catch(e=>alert(e.message));}}>Save ✅</button>
       </div>
     </div>}
-
-    {/* Add log modal */}
     {showAddLog&&<div style={S.modal} onClick={e=>e.target===e.currentTarget&&setShowAddLog(false)}>
       <div style={S.modalBox}>
-        <div style={{fontSize:16,fontWeight:800,color:"var(--text)",marginBottom:14}}>📋 Add Health Note</div>
+        <div style={{fontSize:16,fontWeight:800,color:"var(--text)",marginBottom:14}}>📋 Health Log</div>
         <div style={{fontSize:11,fontWeight:600,color:"var(--text2)",marginBottom:4}}>Note *</div>
-        <input style={S.inp} placeholder="e.g. Feeling dizzy today" value={fmLog.text} onChange={e=>setFmLog({...fmLog,text:e.target.value})}/>
+        <input style={S.inp} placeholder="e.g. Feeling dizzy" value={fmLog.text} onChange={e=>setFmLog({...fmLog,text:e.target.value})}/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           <div><div style={{fontSize:11,fontWeight:600,color:"var(--text2)",marginBottom:4}}>Blood Sugar</div><input style={S.inp} type="number" placeholder="mg/dL" value={fmLog.bloodSugar} onChange={e=>setFmLog({...fmLog,bloodSugar:e.target.value})}/></div>
           <div><div style={{fontSize:11,fontWeight:600,color:"var(--text2)",marginBottom:4}}>Blood Pressure</div><input style={S.inp} placeholder="120/80" value={fmLog.bloodPressure} onChange={e=>setFmLog({...fmLog,bloodPressure:e.target.value})}/></div>
@@ -703,7 +662,7 @@ const Health=()=>{
       </div>
     </div>}
   </div>);
-};
+
   const Faith=()=>{
     const[tb,setTb]=useState(tasbeeh);
     return(<div style={S.page}>
@@ -912,7 +871,7 @@ const Health=()=>{
       </div>
       <div style={{background:"#FEF3C7",borderRadius:10,padding:"10px 12px"}}>
         <div style={{fontSize:10,fontWeight:700,color:"#92400E",marginBottom:3}}>🔑 INVITE CODE — Share this!</div>
-        <div style={{fontSize:20,fontWeight:900,color:"#F59E0B",letterSpacing:2,fontFamily:"monospace"}}>{family.inviteCode}</div>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}><div style={{fontSize:20,fontWeight:900,color:"#F59E0B",letterSpacing:2,fontFamily:"monospace"}}>{family.inviteCode}</div><button onClick={()=>{navigator.clipboard?.writeText(family.inviteCode);alert("Invite code copied! ✅");}} style={{background:"#F59E0B",border:"none",borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:700,color:"white",cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>Copy</button></div>
         <div style={{fontSize:10,color:"#92400E",marginTop:4}}>Others: Open app → Join Family → Enter code ✅</div>
       </div>
     </div>
@@ -938,6 +897,7 @@ const Health=()=>{
   const PAGES={dashboard:<Dashboard/>,health:<Health/>,faith:<Faith/>,kids:<Kids/>,chat:<ChatList/>,memories:<Memories/>,emergency:<Emergency/>,settings:<Settings/>};
 
   return(<div style={S.root}>
+    {showOnboarding&&<OnboardingSlides onDone={finishOnboarding}/>}
     <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}input,select,textarea{-webkit-appearance:none;font-family:inherit;}::-webkit-scrollbar{display:none;}body{overscroll-behavior:none;touch-action:manipulation;}`}</style>
     {/* Connection bar */}
     <div style={{height:socketConnected?0:22,overflow:"hidden",background:"#EF4444",color:"white",textAlign:"center",fontSize:10,fontWeight:700,lineHeight:"22px",flexShrink:0,transition:"height .3s"}}>🔴 Connecting to server...</div>
