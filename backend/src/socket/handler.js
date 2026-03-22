@@ -5,7 +5,7 @@ const axios = require("axios");
 
 const ONESIGNAL_APP_ID = "f0a96e08-77cb-48fa-989e-70640ff2380f";
 
-const sendPush = async (title, body, excludeName, url = "https://family-verse-umber.vercel.app") => {
+const sendPush = async (title, body, excludeName, url = "https://family-verse-weld.vercel.app") => {
   if (!process.env.ONESIGNAL_API_KEY) {
     console.log("⚠️ ONESIGNAL_API_KEY not set — skipping push");
     return;
