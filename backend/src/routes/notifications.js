@@ -81,7 +81,7 @@ router.post("/test", async (req, res) => {
         included_segments: ["All"],
         headings: { en: "🏠 FamilyVerse Test" },
         contents: { en: `✅ Notifications working! Hello ${memberName}! 🎉` },
-        url: "https://family-verse-umber.vercel.app",
+        url: "https://family-verse-weld.vercel.app",
       },
       {
         headers: {
