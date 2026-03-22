@@ -8,17 +8,14 @@ const cors = require("cors");
 const app = express();
 const server = http.createServer(app);
 
-// CORS
 app.use(cors());
 app.options("*", cors());
 
-// Socket.IO
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET","POST","PUT","PATCH","DELETE"] }
 });
 require("./socket/handler")(io);
 
-// Middleware
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
@@ -28,6 +25,7 @@ app.use("/api/health",        require("./routes/health"));
 app.use("/api/messages",      require("./routes/messages"));
 app.use("/api/memories",      require("./routes/memories"));
 app.use("/api/notifications", require("./routes/notifications").router);
+app.use("/api/quran",         require("./routes/daily_ayah"));
 
 // Health check
 app.get("/api/ping", (req, res) => res.json({ status: "ok", time: new Date() }));
