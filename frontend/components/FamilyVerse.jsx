@@ -276,6 +276,24 @@ export default function FamilyVerse(){
     }catch(e){console.log("Socket:",e.message);}
   },[]);
 
+  // Register device for push notifications
+  const registerForPush = useCallback(async (token) => {
+    try {
+      if (typeof window === "undefined") return;
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async (OneSignal) => {
+        try {
+          await OneSignal.Notifications.requestPermission();
+          const playerId = await OneSignal.User.PushSubscription.id;
+          if (playerId) {
+            await apiFetch("POST", "/notifications/register", { playerId }, token);
+            console.log("✅ Push notifications registered!");
+          }
+        } catch (e) { console.log("Push reg skipped:", e.message); }
+      });
+    } catch (e) { console.log("OneSignal skipped:", e.message); }
+  }, []);
+
   const loadData=useCallback(async(token,city)=>{
     if(dataLoadedRef.current)return;
     dataLoadedRef.current=true;
@@ -303,6 +321,7 @@ export default function FamilyVerse(){
       connectSocket(session.token);
       // Load group messages on startup
       loadMessages("group",session.token);
+      registerForPush(session.token);
     }
     return()=>{if(socketRef.current){socketRef.current.disconnect();socketRef.current=null;}};
   },[session?.token]);
@@ -873,6 +892,7 @@ export default function FamilyVerse(){
         <div style={{fontSize:10,fontWeight:700,color:"#92400E",marginBottom:3}}>🔑 INVITE CODE — Share this!</div>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}><div style={{fontSize:20,fontWeight:900,color:"#F59E0B",letterSpacing:2,fontFamily:"monospace"}}>{family.inviteCode}</div><button onClick={()=>{navigator.clipboard?.writeText(family.inviteCode);alert("Invite code copied! ✅");}} style={{background:"#F59E0B",border:"none",borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:700,color:"white",cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>Copy</button></div>
         <div style={{fontSize:10,color:"#92400E",marginTop:4}}>Others: Open app → Join Family → Enter code ✅</div>
+        <button onClick={()=>apiFetch("POST","/notifications/test",{},T).then(()=>alert("Test notification sent! Check your phone! 🔔")).catch(e=>alert("Error: "+e.message))} style={{marginTop:8,width:"100%",padding:"8px",borderRadius:8,border:"none",background:"#6366F1",color:"white",fontFamily:"inherit",fontWeight:700,fontSize:12,cursor:"pointer"}}>🔔 Test Notifications</button>
       </div>
     </div>
     <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:1,color:"var(--muted)",fontWeight:700,margin:"12px 0 8px"}}>👥 MEMBERS</div>
