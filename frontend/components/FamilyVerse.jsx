@@ -156,7 +156,7 @@ body{font-family:'Nunito',sans-serif;background:var(--cream);color:var(--text);h
 .qd.s{bottom:8px;left:50%;transform:translateX(-50%);}
 .qd.e{right:8px;top:50%;transform:translateY(-50%);}
 .qd.w{left:8px;top:50%;transform:translateY(-50%);}
-.qibla-arrow{font-size:38px;transition:transform .3s ease;}
+.qibla-arrow{font-size:38px;transition:transform 0.5s ease;}
 .tb-btn-wrap{text-align:center;}
 .tasbeeh-btn{width:110px;height:110px;border-radius:50%;background:linear-gradient(135deg,#1E3A5F,#0D9488);border:none;cursor:pointer;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto;box-shadow:0 6px 24px rgba(30,58,95,.3);}
 .tasbeeh-btn:active{transform:scale(.93);}
@@ -968,17 +968,24 @@ export default function FamilyVerse() {
           <div className="card" style={{marginBottom:0}}>
             <div className="card-t" style={{marginBottom:10}}>🧭 Qibla Compass</div>
             <div style={{textAlign:"center",padding:"8px 0"}}>
-              <div className="qibla-wrap">
-                <div className="qibla-outer">
-                  <div className="qibla-ring"/>
-                  <div className="qibla-dirs">
-                    <div className="qd n">N</div><div className="qd s">S</div>
-                    <div className="qd e">E</div><div className="qd w">W</div>
-                  </div>
-                  <div className="qibla-arrow" style={{transform:`rotate(${qiblaAngle||0}deg)`}}>🕋</div>
-                </div>
-              </div>
-              <div className="txt-m" style={{marginTop:6}}>{qiblaDir!==null?`${qiblaDir}° · Towards Makkah`:"Getting location..."}</div>
+             <div style={{width:150,height:150,margin:"0 auto",position:"relative"}}>
+  {/* Outer ring */}
+  <div style={{width:150,height:150,borderRadius:"50%",background:"linear-gradient(135deg,#1E3A5F,#0D9488)",boxShadow:"0 8px 32px rgba(13,148,136,.4)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+    {/* Degree marks */}
+    <div style={{position:"absolute",inset:6,borderRadius:"50%",border:"1px solid rgba(255,255,255,.15)"}}/>
+    <div style={{position:"absolute",inset:14,borderRadius:"50%",border:"1px dashed rgba(255,255,255,.08)"}}/>
+    {/* N S E W */}
+    {[["N","top:4px,left:50%,transform:translateX(-50%)"],["S","bottom:4px,left:50%,transform:translateX(-50%)"],["E","right:4px,top:50%,transform:translateY(-50%)"],["W","left:4px,top:50%,transform:translateY(-50%)"]].map(([l,pos])=>(
+      <div key={l} style={{position:"absolute",...Object.fromEntries(pos.split(",").map(p=>p.split(":"))),fontSize:10,color:"rgba(255,255,255,.6)",fontWeight:800,fontFamily:"Nunito,sans-serif"}}>{l}</div>
+    ))}
+    {/* Kaaba arrow - smooth rotation */}
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,transition:"transform 0.5s ease",transform:`rotate(${qiblaAngle||0}deg)`}}>
+      <div style={{width:0,height:0,borderLeft:"7px solid transparent",borderRight:"7px solid transparent",borderBottom:"18px solid #F59E0B"}}/>
+      <div style={{fontSize:28,lineHeight:1}}>🕋</div>
+      <div style={{width:0,height:0,borderLeft:"5px solid transparent",borderRight:"5px solid transparent",borderTop:"12px solid rgba(245,158,11,.4)"}}/>
+    </div>
+  </div>
+</div>              <div className="txt-m" style={{marginTop:6}}>{qiblaDir!==null?`${qiblaDir}° · Towards Makkah`:"Getting location..."}</div>
               {qiblaDir===null&&<button className="btn btn-a btn-sm mt8" onClick={loadQibla}>📍 Enable GPS</button>}
             </div>
           </div>
