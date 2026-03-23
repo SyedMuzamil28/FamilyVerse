@@ -345,9 +345,41 @@ function DrawingBoard() {
   );
 }
 
+function OnboardingSlides({ onDone }) {
+  const [slide, setSlide] = useState(0);
+  const SLIDES = [
+    {bg:"linear-gradient(160deg,#1E3A5F,#0D9488)",icon:"🏠",title:"Welcome to FamilyVerse",sub:"Your private family universe ✨",desc:"One app for your whole family — health, chat, faith, memories and safety. All in one private place."},
+    {bg:"linear-gradient(160deg,#7C3AED,#0D9488)",icon:"✨",title:"Everything In One Place",sub:"6 powerful features",features:[{e:"💬",t:"Real-time Family Chat"},{e:"❤️",t:"Health & Medicine"},{e:"🕌",t:"Prayer Times & Qibla"},{e:"🤖",t:"AI Health Assistant"},{e:"📸",t:"Memory Capsule"},{e:"🆘",t:"Emergency SOS"}]},
+    {bg:"linear-gradient(160deg,#0D9488,#16A34A)",icon:"🔒",title:"100% Private & Secure",sub:"Only your family can join",desc:"Secret invite code. No strangers. No ads. No one reads your data. More private than WhatsApp."},
+    {bg:"linear-gradient(160deg,#F59E0B,#EF4444)",icon:"🚀",title:"Ready to Connect!",sub:"Takes 1 minute to set up",steps:[{n:"1",t:"Create your family"},{n:"2",t:"Share the invite code"},{n:"3",t:"Family joins instantly"},{n:"4",t:"Start using together! 🎉"}]},
+  ];
+  const s=SLIDES[slide],isLast=slide===SLIDES.length-1;
+  const CSS_OB = `@keyframes obFadeUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}} .ob-slide{animation:obFadeUp .35s ease;}`;
+  return(
+    <div style={{position:"fixed",inset:0,background:s.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"30px 22px",zIndex:2000,fontFamily:"Nunito,sans-serif"}}>
+      <style>{CSS_OB}</style>
+      <button onClick={onDone} style={{position:"absolute",top:50,right:20,background:"rgba(255,255,255,.2)",border:"none",color:"white",padding:"6px 16px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"Nunito,sans-serif"}}>Skip</button>
+      <div className="ob-slide" key={slide} style={{textAlign:"center",maxWidth:340,width:"100%"}}>
+        <div style={{fontSize:60,marginBottom:10,lineHeight:1}}>{s.icon}</div>
+        <div style={{fontFamily:"Fredoka One,cursive",fontSize:26,color:"white",marginBottom:5,lineHeight:1.2}}>{s.title}</div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,.7)",marginBottom:22}}>{s.sub}</div>
+        {s.desc&&<div style={{fontSize:14,color:"rgba(255,255,255,.9)",lineHeight:1.8,background:"rgba(255,255,255,.12)",borderRadius:14,padding:"14px 18px"}}>{s.desc}</div>}
+        {s.features&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{s.features.map((f,i)=><div key={i} style={{background:"rgba(255,255,255,.15)",borderRadius:12,padding:"10px 8px",display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:20}}>{f.e}</span><span style={{fontSize:12,fontWeight:700,color:"white",textAlign:"left"}}>{f.t}</span></div>)}</div>}
+        {s.steps&&<div style={{display:"flex",flexDirection:"column",gap:8}}>{s.steps.map((st,i)=><div key={i} style={{background:"rgba(255,255,255,.15)",borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",gap:12}}><div style={{width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:"white",flexShrink:0}}>{st.n}</div><span style={{fontSize:13,fontWeight:700,color:"white"}}>{st.t}</span></div>)}</div>}
+      </div>
+      <div style={{position:"absolute",bottom:46,left:22,right:22}}>
+        <div style={{display:"flex",justifyContent:"center",gap:7,marginBottom:16}}>{SLIDES.map((_,i)=><div key={i} onClick={()=>setSlide(i)} style={{width:i===slide?22:7,height:7,borderRadius:4,background:i===slide?"white":"rgba(255,255,255,.35)",transition:"all .3s",cursor:"pointer"}}/>)}</div>
+        <button onClick={()=>isLast?onDone():setSlide(s=>s+1)} style={{width:"100%",padding:"14px 20px",borderRadius:14,border:"none",background:"white",color:"#1E3A5F",fontFamily:"Fredoka One,cursive",fontWeight:"normal",fontSize:17,cursor:"pointer",boxShadow:"0 4px 18px rgba(0,0,0,.18)"}}>{isLast?"Let's Get Started! 🚀":"Next →"}</button>
+      </div>
+    </div>
+  );
+}
+
+
 export default function FamilyVerse() {
-  const [session, setSession] = useState(null);
   const [mounted, setMounted] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [session, setSession] = useState(null);
   const [obMode, setObMode] = useState("create");
   const [obStep, setObStep] = useState(1);
   const [obData, setObData] = useState({ familyName:"", userName:"", role:"Father", city:"Hyderabad", password:"", joinCode:"" });
@@ -402,6 +434,7 @@ export default function FamilyVerse() {
   const [incomingCall, setIncomingCall] = useState(null);
   const [activeCall, setActiveCall] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [openSurah, setOpenSurah] = useState(null);
   const [socketConnected, setSocketConnected] = useState(false);
 
   const socketRef = useRef(null);
@@ -507,8 +540,9 @@ export default function FamilyVerse() {
 
   useEffect(() => {
     setMounted(true);
-    const savedSession = LS.get("session", null);
-    if (savedSession) setSession(savedSession);
+    const saved = LS.get("session", null);
+    if (saved) setSession(saved);
+    if (!LS.get("ob_done", false)) setShowOnboarding(true);
   }, []);
 
   useEffect(() => {
@@ -516,21 +550,18 @@ export default function FamilyVerse() {
       loadData(session.token, session.city);
       connectSocket(session.token);
       loadMessages("group");
-      // Register for push notifications
       setTimeout(async () => {
         try {
           if (typeof window !== "undefined" && window.OneSignal) {
             await window.OneSignal.Notifications.requestPermission();
             await new Promise(r => setTimeout(r, 2000));
             const pid = window.OneSignal.User?.PushSubscription?.id;
-            if (pid) {
-              await api("POST", "/notifications/register", { playerId: pid }, session.token);
-            }
+            if (pid) await api("POST", "/notifications/register", { playerId: pid }, session.token);
           }
-        } catch(e) { console.log("Push:", e.message); }
+        } catch(e) {}
       }, 3000);
     }
-    return () => socketRef.current?.disconnect();
+    return () => { if (socketRef.current) { socketRef.current.disconnect(); socketRef.current = null; } };
   }, [session?.token]);
 
   useEffect(() => { LS.set("water", water); }, [water]);
@@ -623,6 +654,7 @@ export default function FamilyVerse() {
     );
   }
 
+  const finishOnboarding = () => { LS.set("ob_done", true); setShowOnboarding(false); };
   const me = session.member;
   const family = session.family;
   const now = new Date();
@@ -725,11 +757,12 @@ export default function FamilyVerse() {
 
   if (page==="chat" && openChat) {
     const chatId = openChat.id==="group" ? "group" : [me.name, openChat.name].sort().join("-");
-    const chatMsgs = messages.filter(m=>m.chatId===chatId);
+    const chatMsgs = messages.filter(m=>m.chatId===chatId||(openChat.id==="group"&&!m.chatId));
     return (
       <>
         <style>{CSS}</style>
-        <div id="fv">
+        {showOnboarding && <OnboardingSlides onDone={finishOnboarding} />}
+      <div id="fv">
           <div className="chat-win">
             <div className="cw-hd">
               <button className="cw-back" onClick={()=>{setOpenChat(null);loadMessages("group");}}>←</button>
@@ -956,6 +989,18 @@ export default function FamilyVerse() {
             {ramadan.map((d,i)=><div key={i} className={`rd ${d==="fasted"?"fasted":"unfasted"}`} onClick={()=>setRamadan(p=>{const n=[...p];n[i]=n[i]==="fasted"?"unfasted":"fasted";return n;})}>{i+1}</div>)}
           </div>
         </div>
+        <div className="sec-t">📖 Holy Quran</div>
+        <div className="card" style={{marginBottom:10}}>
+          <div style={{fontSize:12,color:"var(--muted)",marginBottom:10}}>Tap a surah to read Arabic · English · Urdu · Listen</div>
+          {[{n:1,name:"Al-Fatihah",ar:"الفاتحة",eng:"The Opening",v:7},{n:18,name:"Al-Kahf",ar:"الكهف",eng:"The Cave",v:110},{n:36,name:"Ya-Sin",ar:"يس",eng:"Ya Sin",v:83},{n:55,name:"Ar-Rahman",ar:"الرحمن",eng:"The Most Gracious",v:78},{n:67,name:"Al-Mulk",ar:"الملك",eng:"The Sovereignty",v:30},{n:112,name:"Al-Ikhlas",ar:"الإخلاص",eng:"Sincerity",v:4},{n:113,name:"Al-Falaq",ar:"الفلق",eng:"The Daybreak",v:5},{n:114,name:"An-Nas",ar:"الناس",eng:"Mankind",v:6}].map(s=>(
+            <div key={s.n} onClick={()=>setOpenSurah(s)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid rgba(0,0,0,.05)",cursor:"pointer"}}>
+              <div style={{width:34,height:34,borderRadius:9,background:"linear-gradient(135deg,#1E3A5F,#0D9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"white",flexShrink:0}}>{s.n}</div>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:800,color:"var(--navy)"}}>{s.name}</div><div style={{fontSize:10,color:"var(--muted)"}}>{s.eng} · {s.v} verses</div></div>
+              <div style={{fontFamily:"Amiri,serif",fontSize:16,color:"var(--teal)"}}>{s.ar}</div>
+            </div>
+          ))}
+          <button onClick={()=>setOpenSurah("all")} style={{width:"100%",marginTop:10,padding:"8px",borderRadius:10,border:"1px solid rgba(30,58,95,.15)",background:"#F1F5F9",fontFamily:"Nunito,sans-serif",fontWeight:700,fontSize:12,color:"var(--navy)",cursor:"pointer"}}>View All 114 Surahs →</button>
+        </div>
         <div className="sec-t">🤲 Daily Duas ({DUAS.length})</div>
         {DUAS.map((d,i)=>(
           <div key={i} className="dua-card">
@@ -1113,7 +1158,7 @@ export default function FamilyVerse() {
         </div>
         <div className="invite-box">
           <div style={{fontSize:10,fontWeight:700,color:"#92400E",marginBottom:3}}>🔑 FAMILY INVITE CODE — Share this!</div>
-          <div className="invite-code">{family.inviteCode}</div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}><div className="invite-code">{family.inviteCode}</div><button onClick={()=>{navigator.clipboard?.writeText(family.inviteCode);alert("Copied! ✅");}} className="btn btn-a btn-sm">Copy</button></div>
           <div className="txt-m" style={{marginTop:6}}>Family members: Open app → "Join Existing Family" → Enter this code → They're in! ✅</div>
         </div>
       </div>
@@ -1141,11 +1186,130 @@ export default function FamilyVerse() {
     </div>
   );
 
+
+  // Surah Reader Modal
+  const SurahReader = () => {
+    const ALL_114 = [
+      {n:1,name:"Al-Fatihah",ar:"الفاتحة",eng:"The Opening",v:7},{n:2,name:"Al-Baqarah",ar:"البقرة",eng:"The Cow",v:286},{n:3,name:"Ali 'Imran",ar:"آل عمران",eng:"Family of Imran",v:200},{n:4,name:"An-Nisa",ar:"النساء",eng:"The Women",v:176},{n:5,name:"Al-Ma'idah",ar:"المائدة",eng:"The Table Spread",v:120},{n:6,name:"Al-An'am",ar:"الأنعام",eng:"The Cattle",v:165},{n:7,name:"Al-A'raf",ar:"الأعراف",eng:"The Heights",v:206},{n:8,name:"Al-Anfal",ar:"الأنفال",eng:"Spoils of War",v:75},{n:9,name:"At-Tawbah",ar:"التوبة",eng:"The Repentance",v:129},{n:10,name:"Yunus",ar:"يونس",eng:"Jonah",v:109},{n:11,name:"Hud",ar:"هود",eng:"Hud",v:123},{n:12,name:"Yusuf",ar:"يوسف",eng:"Joseph",v:111},{n:13,name:"Ar-Ra'd",ar:"الرعد",eng:"The Thunder",v:43},{n:14,name:"Ibrahim",ar:"إبراهيم",eng:"Abraham",v:52},{n:15,name:"Al-Hijr",ar:"الحجر",eng:"The Rocky Tract",v:99},{n:16,name:"An-Nahl",ar:"النحل",eng:"The Bee",v:128},{n:17,name:"Al-Isra",ar:"الإسراء",eng:"The Night Journey",v:111},{n:18,name:"Al-Kahf",ar:"الكهف",eng:"The Cave",v:110},{n:19,name:"Maryam",ar:"مريم",eng:"Mary",v:98},{n:20,name:"Ta-Ha",ar:"طه",eng:"Ta-Ha",v:135},{n:21,name:"Al-Anbiya",ar:"الأنبياء",eng:"The Prophets",v:112},{n:22,name:"Al-Hajj",ar:"الحج",eng:"The Pilgrimage",v:78},{n:23,name:"Al-Mu'minun",ar:"المؤمنون",eng:"The Believers",v:118},{n:24,name:"An-Nur",ar:"النور",eng:"The Light",v:64},{n:25,name:"Al-Furqan",ar:"الفرقان",eng:"The Criterion",v:77},{n:26,name:"Ash-Shu'ara",ar:"الشعراء",eng:"The Poets",v:227},{n:27,name:"An-Naml",ar:"النمل",eng:"The Ant",v:93},{n:28,name:"Al-Qasas",ar:"القصص",eng:"The Stories",v:88},{n:29,name:"Al-'Ankabut",ar:"العنكبوت",eng:"The Spider",v:69},{n:30,name:"Ar-Rum",ar:"الروم",eng:"The Romans",v:60},{n:31,name:"Luqman",ar:"لقمان",eng:"Luqman",v:34},{n:32,name:"As-Sajdah",ar:"السجدة",eng:"The Prostration",v:30},{n:33,name:"Al-Ahzab",ar:"الأحزاب",eng:"The Combined Forces",v:73},{n:34,name:"Saba",ar:"سبأ",eng:"Sheba",v:54},{n:35,name:"Fatir",ar:"فاطر",eng:"Originator",v:45},{n:36,name:"Ya-Sin",ar:"يس",eng:"Ya Sin",v:83},{n:37,name:"As-Saffat",ar:"الصافات",eng:"Those Ranged in Ranks",v:182},{n:38,name:"Sad",ar:"ص",eng:"The Letter Sad",v:88},{n:39,name:"Az-Zumar",ar:"الزمر",eng:"The Groups",v:75},{n:40,name:"Ghafir",ar:"غافر",eng:"The Forgiver",v:85},{n:41,name:"Fussilat",ar:"فصلت",eng:"Explained in Detail",v:54},{n:42,name:"Ash-Shura",ar:"الشورى",eng:"The Consultation",v:53},{n:43,name:"Az-Zukhruf",ar:"الزخرف",eng:"Ornaments of Gold",v:89},{n:44,name:"Ad-Dukhan",ar:"الدخان",eng:"The Smoke",v:59},{n:45,name:"Al-Jathiyah",ar:"الجاثية",eng:"The Crouching",v:37},{n:46,name:"Al-Ahqaf",ar:"الأحقاف",eng:"Wind-Curved Sandhills",v:35},{n:47,name:"Muhammad",ar:"محمد",eng:"Muhammad",v:38},{n:48,name:"Al-Fath",ar:"الفتح",eng:"The Victory",v:29},{n:49,name:"Al-Hujurat",ar:"الحجرات",eng:"The Rooms",v:18},{n:50,name:"Qaf",ar:"ق",eng:"The Letter Qaf",v:45},{n:51,name:"Adh-Dhariyat",ar:"الذاريات",eng:"The Winnowing Winds",v:60},{n:52,name:"At-Tur",ar:"الطور",eng:"The Mount",v:49},{n:53,name:"An-Najm",ar:"النجم",eng:"The Star",v:62},{n:54,name:"Al-Qamar",ar:"القمر",eng:"The Moon",v:55},{n:55,name:"Ar-Rahman",ar:"الرحمن",eng:"The Most Gracious",v:78},{n:56,name:"Al-Waqi'ah",ar:"الواقعة",eng:"The Inevitable",v:96},{n:57,name:"Al-Hadid",ar:"الحديد",eng:"The Iron",v:29},{n:58,name:"Al-Mujadila",ar:"المجادلة",eng:"The Pleading Woman",v:22},{n:59,name:"Al-Hashr",ar:"الحشر",eng:"The Exile",v:24},{n:60,name:"Al-Mumtahanah",ar:"الممتحنة",eng:"She That is Examined",v:13},{n:61,name:"As-Saf",ar:"الصف",eng:"The Ranks",v:14},{n:62,name:"Al-Jumu'ah",ar:"الجمعة",eng:"The Congregation",v:11},{n:63,name:"Al-Munafiqun",ar:"المنافقون",eng:"The Hypocrites",v:11},{n:64,name:"At-Taghabun",ar:"التغابن",eng:"Mutual Disillusion",v:18},{n:65,name:"At-Talaq",ar:"الطلاق",eng:"The Divorce",v:12},{n:66,name:"At-Tahrim",ar:"التحريم",eng:"The Prohibition",v:12},{n:67,name:"Al-Mulk",ar:"الملك",eng:"The Sovereignty",v:30},{n:68,name:"Al-Qalam",ar:"القلم",eng:"The Pen",v:52},{n:69,name:"Al-Haqqah",ar:"الحاقة",eng:"The Reality",v:52},{n:70,name:"Al-Ma'arij",ar:"المعارج",eng:"The Ascending Stairways",v:44},{n:71,name:"Nuh",ar:"نوح",eng:"Noah",v:28},{n:72,name:"Al-Jinn",ar:"الجن",eng:"The Jinn",v:28},{n:73,name:"Al-Muzzammil",ar:"المزمل",eng:"The Enshrouded One",v:20},{n:74,name:"Al-Muddaththir",ar:"المدثر",eng:"The Cloaked One",v:56},{n:75,name:"Al-Qiyamah",ar:"القيامة",eng:"The Resurrection",v:40},{n:76,name:"Al-Insan",ar:"الإنسان",eng:"The Man",v:31},{n:77,name:"Al-Mursalat",ar:"المرسلات",eng:"The Emissaries",v:50},{n:78,name:"An-Naba",ar:"النبأ",eng:"The Tidings",v:40},{n:79,name:"An-Nazi'at",ar:"النازعات",eng:"Those Who Drag Forth",v:46},{n:80,name:"Abasa",ar:"عبس",eng:"He Frowned",v:42},{n:81,name:"At-Takwir",ar:"التكوير",eng:"The Overthrowing",v:29},{n:82,name:"Al-Infitar",ar:"الانفطار",eng:"The Cleaving",v:19},{n:83,name:"Al-Mutaffifin",ar:"المطففين",eng:"The Defrauding",v:36},{n:84,name:"Al-Inshiqaq",ar:"الانشقاق",eng:"The Splitting Open",v:25},{n:85,name:"Al-Buruj",ar:"البروج",eng:"The Mansions of Stars",v:22},{n:86,name:"At-Tariq",ar:"الطارق",eng:"The Morning Star",v:17},{n:87,name:"Al-A'la",ar:"الأعلى",eng:"The Most High",v:19},{n:88,name:"Al-Ghashiyah",ar:"الغاشية",eng:"The Overwhelming",v:26},{n:89,name:"Al-Fajr",ar:"الفجر",eng:"The Dawn",v:30},{n:90,name:"Al-Balad",ar:"البلد",eng:"The City",v:20},{n:91,name:"Ash-Shams",ar:"الشمس",eng:"The Sun",v:15},{n:92,name:"Al-Layl",ar:"الليل",eng:"The Night",v:21},{n:93,name:"Ad-Duha",ar:"الضحى",eng:"The Morning Hours",v:11},{n:94,name:"Ash-Sharh",ar:"الشرح",eng:"The Relief",v:8},{n:95,name:"At-Tin",ar:"التين",eng:"The Fig",v:8},{n:96,name:"Al-'Alaq",ar:"العلق",eng:"The Clot",v:19},{n:97,name:"Al-Qadr",ar:"القدر",eng:"The Power",v:5},{n:98,name:"Al-Bayyinah",ar:"البينة",eng:"The Clear Proof",v:8},{n:99,name:"Az-Zalzalah",ar:"الزلزلة",eng:"The Earthquake",v:8},{n:100,name:"Al-'Adiyat",ar:"العاديات",eng:"The Courser",v:11},{n:101,name:"Al-Qari'ah",ar:"القارعة",eng:"The Calamity",v:11},{n:102,name:"At-Takathur",ar:"التكاثر",eng:"The Rivalry",v:8},{n:103,name:"Al-'Asr",ar:"العصر",eng:"The Declining Day",v:3},{n:104,name:"Al-Humazah",ar:"الهمزة",eng:"The Traducer",v:9},{n:105,name:"Al-Fil",ar:"الفيل",eng:"The Elephant",v:5},{n:106,name:"Quraysh",ar:"قريش",eng:"Quraysh",v:4},{n:107,name:"Al-Ma'un",ar:"الماعون",eng:"Small Kindnesses",v:7},{n:108,name:"Al-Kawthar",ar:"الكوثر",eng:"The Abundance",v:3},{n:109,name:"Al-Kafirun",ar:"الكافرون",eng:"The Disbelievers",v:6},{n:110,name:"An-Nasr",ar:"النصر",eng:"The Divine Support",v:3},{n:111,name:"Al-Masad",ar:"المسد",eng:"The Palm Fibre",v:5},{n:112,name:"Al-Ikhlas",ar:"الإخلاص",eng:"Sincerity",v:4},{n:113,name:"Al-Falaq",ar:"الفلق",eng:"The Daybreak",v:5},{n:114,name:"An-Nas",ar:"الناس",eng:"Mankind",v:6}
+    ];
+    const [verses, setVerses] = useState([]);
+    const [vLoading, setVLoading] = useState(false);
+    const [vError, setVError] = useState(false);
+    const [audioPlay, setAudioPlay] = useState(null);
+    const [audioObj, setAudioObj] = useState(null);
+    const [search, setSearch] = useState("");
+    const surah = openSurah === "all" ? null : openSurah;
+
+    const filtered = ALL_114.filter(s =>
+      !search.trim() ||
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.ar.includes(search) ||
+      String(s.n).includes(search)
+    );
+
+    useEffect(() => {
+      if (surah && surah !== "all") {
+        setVLoading(true); setVError(false); setVerses([]);
+        fetch(`https://api.alquran.cloud/v1/surah/${surah.n}/editions/quran-uthmani,en.sahih,ur.jalandhry`)
+          .then(r=>r.json())
+          .then(d=>{
+            if(d.code===200&&d.data?.length===3){
+              const ar=d.data[0].ayahs,en=d.data[1].ayahs,ur=d.data[2].ayahs;
+              setVerses(ar.map((a,i)=>({n:a.numberInSurah,arabic:a.text,english:en[i]?.text||"",urdu:ur[i]?.text||""})));
+            } else setVError(true);
+          })
+          .catch(()=>setVError(true))
+          .finally(()=>setVLoading(false));
+      }
+    }, [surah?.n]);
+
+    const stopAudio = () => { if(audioObj){audioObj.pause();audioObj.src="";} setAudioObj(null); setAudioPlay(null); };
+    const playAudio = (url, id) => {
+      stopAudio();
+      if(audioPlay===id) return;
+      const a = new Audio(url);
+      a.play().catch(()=>alert("Audio unavailable. Check internet."));
+      a.onended = () => { setAudioPlay(null); setAudioObj(null); };
+      setAudioObj(a); setAudioPlay(id);
+    };
+
+    // Surah reading view
+    if (surah && surah !== "all") {
+      const arabicUrl = `https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/${surah.n}.mp3`;
+      const urduUrl = `https://cdn.islamic.network/quran/audio-surah/128/ur.khan/${surah.n}.mp3`;
+      return (
+        <div className="mo-overlay" style={{zIndex:600}}>
+          <div style={{background:"white",borderRadius:"18px 18px 0 0",width:"100%",maxWidth:480,height:"90vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+            <div style={{background:"linear-gradient(135deg,#1E3A5F,#0D9488)",padding:"12px 14px",flexShrink:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                <button onClick={()=>{stopAudio();setOpenSurah(null);}} style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:8,padding:"6px 13px",color:"white",cursor:"pointer",fontSize:13,fontFamily:"Nunito,sans-serif",fontWeight:700}}>← Back</button>
+                <div style={{flex:1}}><div style={{fontFamily:"Fredoka One,cursive",fontSize:16,color:"white"}}>{surah.name}</div><div style={{fontSize:11,color:"rgba(255,255,255,.6)"}}>{surah.eng} · {surah.v} verses</div></div>
+                <div style={{fontFamily:"Amiri,serif",fontSize:22,color:"white"}}>{surah.ar}</div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <button onClick={()=>audioPlay==="arabic"?stopAudio():playAudio(arabicUrl,"arabic")} style={{padding:"8px",borderRadius:10,border:"none",background:audioPlay==="arabic"?"#EF4444":"rgba(255,255,255,.15)",color:"white",cursor:"pointer",fontSize:12,fontFamily:"Nunito,sans-serif",fontWeight:700}}>{audioPlay==="arabic"?"⏸ Stop":"▶ Arabic Recitation"}</button>
+                <button onClick={()=>audioPlay==="urdu"?stopAudio():playAudio(urduUrl,"urdu")} style={{padding:"8px",borderRadius:10,border:"none",background:audioPlay==="urdu"?"#EF4444":"rgba(255,255,255,.15)",color:"white",cursor:"pointer",fontSize:12,fontFamily:"Nunito,sans-serif",fontWeight:700}}>{audioPlay==="urdu"?"⏸ Stop":"🎧 Urdu Translation"}</button>
+              </div>
+            </div>
+            <div style={{flex:1,overflowY:"auto",background:"var(--cream)",WebkitOverflowScrolling:"touch"}}>
+              {vLoading && <div style={{textAlign:"center",padding:"50px",color:"var(--muted)"}}>Loading {surah.name}...</div>}
+              {vError && <div style={{textAlign:"center",padding:"50px"}}><div style={{fontSize:13,color:"var(--muted)",marginBottom:12}}>Could not load. Check internet.</div><button onClick={()=>{ setVError(false); setVLoading(true); fetch(`https://api.alquran.cloud/v1/surah/${surah.n}/editions/quran-uthmani,en.sahih,ur.jalandhry`).then(r=>r.json()).then(d=>{if(d.code===200&&d.data?.length===3){const ar=d.data[0].ayahs,en=d.data[1].ayahs,ur=d.data[2].ayahs;setVerses(ar.map((a,i)=>({n:a.numberInSurah,arabic:a.text,english:en[i]?.text||"",urdu:ur[i]?.text||""})));}else setVError(true);}).catch(()=>setVError(true)).finally(()=>setVLoading(false));}} style={{padding:"8px 20px",borderRadius:10,border:"none",background:"var(--navy)",color:"white",cursor:"pointer",fontFamily:"Nunito,sans-serif",fontWeight:700}}>🔄 Try Again</button></div>}
+              {surah.n!==9 && verses.length>0 && <div style={{textAlign:"center",padding:"16px 12px 8px",borderBottom:"1px solid rgba(0,0,0,.06)"}}><div style={{fontFamily:"Amiri,serif",fontSize:24,color:"var(--teal)",lineHeight:2}}>بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div><div style={{fontSize:11,color:"var(--muted)",marginTop:3}}>In the name of Allah, the Most Gracious, the Most Merciful</div></div>}
+              {verses.map(v=>(
+                <div key={v.n} style={{padding:"14px 12px",borderBottom:"1px solid rgba(0,0,0,.05)",background:v.n%2===0?"white":"var(--cream)"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                    <div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#1E3A5F,#0D9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:"white",flexShrink:0}}>{v.n}</div>
+                    <div style={{flex:1,height:1,background:"rgba(0,0,0,.06)"}}/>
+                  </div>
+                  <div style={{fontFamily:"Amiri,serif",fontSize:22,direction:"rtl",textAlign:"right",color:"var(--navy)",lineHeight:2.1,marginBottom:10}}>{v.arabic}</div>
+                  <div style={{fontSize:13,color:"var(--mid)",lineHeight:1.8,fontStyle:"italic",marginBottom:8,paddingTop:8,borderTop:"1px solid rgba(0,0,0,.05)"}}>{v.english}</div>
+                  {v.urdu&&<div style={{fontSize:13,direction:"rtl",textAlign:"right",color:"var(--teal)",lineHeight:2,fontFamily:"Georgia,serif"}}>{v.urdu}</div>}
+                </div>
+              ))}
+              {verses.length>0 && <div style={{textAlign:"center",padding:"16px",fontSize:12,color:"var(--muted)"}}>✨ End of {surah.name}</div>}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // All 114 surahs list
+    return (
+      <div className="mo-overlay" style={{zIndex:600}}>
+        <div style={{background:"white",borderRadius:"18px 18px 0 0",width:"100%",maxWidth:480,height:"90vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          <div style={{background:"linear-gradient(135deg,#1E3A5F,#0D9488)",padding:"12px 14px",flexShrink:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+              <button onClick={()=>setOpenSurah(null)} style={{background:"rgba(255,255,255,.15)",border:"none",borderRadius:8,padding:"6px 13px",color:"white",cursor:"pointer",fontSize:13,fontFamily:"Nunito,sans-serif",fontWeight:700}}>← Back</button>
+              <div style={{fontFamily:"Fredoka One,cursive",fontSize:16,color:"white"}}>📖 Holy Quran · 114 Surahs</div>
+            </div>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Search surah name or number..." style={{width:"100%",padding:"9px 13px",borderRadius:10,border:"none",background:"rgba(255,255,255,.15)",color:"white",fontFamily:"Nunito,sans-serif",fontSize:13,outline:"none"}}/>
+          </div>
+          <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
+            {filtered.map(s=>(
+              <div key={s.n} onClick={()=>setOpenSurah(s)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderBottom:"1px solid rgba(0,0,0,.05)",cursor:"pointer",background:"white"}}>
+                <div style={{width:36,height:36,borderRadius:9,background:"linear-gradient(135deg,#1E3A5F,#0D9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"white",flexShrink:0}}>{s.n}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:4}}>
+                    <div style={{fontSize:13,fontWeight:800,color:"var(--navy)"}}>{s.name}</div>
+                    <div style={{fontFamily:"Amiri,serif",fontSize:16,color:"var(--teal)",flexShrink:0}}>{s.ar}</div>
+                  </div>
+                  <div style={{fontSize:10,color:"var(--muted)",marginTop:1}}>{s.eng} · {s.v} verses</div>
+                </div>
+                <div style={{fontSize:14,color:"var(--muted)"}}>›</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const PAGES = { dashboard:<Dashboard/>, health:<Health/>, faith:<Faith/>, kids:<Kids/>, chat:<ChatList/>, memories:<Memories/>, emergency:<Emergency/>, settings:<Settings/> };
 
   return (
     <>
       <style>{CSS}</style>
+      {openSurah && <SurahReader />}
       {showNotif&&<div className="notif-panel" onClick={()=>setShowNotif(false)}>
         <div style={{fontWeight:800,fontSize:13,color:"var(--navy)",marginBottom:8}}>🔔 Notifications</div>
         {[{e:"💊",t:`${medicines.filter(m=>!m.taken).length} medicines pending`,time:"Now"},{e:"🕌",t:nextPrayer?`Next: ${nextPrayer.name} at ${nextPrayer.time}`:"All prayers done ✓",time:"Today"},{e:"💬",t:unreadMsgs>0?`${unreadMsgs} unread messages`:"No new messages",time:"Today"}].map((n,i)=>(
@@ -1155,6 +1319,7 @@ export default function FamilyVerse() {
           </div>
         ))}
       </div>}
+      {showOnboarding && <OnboardingSlides onDone={finishOnboarding} />}
       <div id="fv">
         <div className={`conn-bar${socketConnected?"":" off"}`}>{socketConnected?"🟢 Connected — Real-time active":"🔴 Connecting to server..."}</div>
         <div className="topbar">
