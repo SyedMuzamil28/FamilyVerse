@@ -1,1089 +1,1197 @@
-import { useState, useEffect, useRef } from "react";
+"use client";
+import { useState, useEffect, useRef, useCallback } from "react";
 
-const GOOGLE_FONTS = `@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap');`;
+const API = "https://familyverse-backend.onrender.com";
 
-const globalStyles = `
-  ${GOOGLE_FONTS}
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Nunito', sans-serif; background: #0D0D1A; color: #E2E8F0; overflow-x: hidden; }
-  ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: #1A1A2E; } ::-webkit-scrollbar-thumb { background: #FF6B35; border-radius: 3px; }
-  @keyframes fadeInUp { from { opacity:0;transform:translateY(18px); } to { opacity:1;transform:translateY(0); } }
-  @keyframes pulse { 0%,100%{transform:scale(1);}50%{transform:scale(1.05);} }
-  @keyframes float { 0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);} }
-  @keyframes glow { 0%,100%{box-shadow:0 0 20px rgba(255,68,68,0.4);}50%{box-shadow:0 0 50px rgba(255,68,68,0.9);} }
-  @keyframes twinkle { 0%,100%{opacity:0.2;}50%{opacity:0.8;} }
-  @keyframes bounce { 0%,100%{transform:translateY(0);}50%{transform:translateY(-12px);} }
-  @keyframes spin { from{transform:rotate(0deg);}to{transform:rotate(360deg);} }
-  .fade-in { animation: fadeInUp 0.45s ease forwards; }
-  .float { animation: float 3s ease-in-out infinite; }
-  .bounce-anim { animation: bounce 1.2s ease-in-out infinite; }
-  .glass { background:rgba(255,255,255,0.05);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1); }
-  .card { background:linear-gradient(135deg,rgba(22,33,62,0.9),rgba(15,52,96,0.6));border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:20px;transition:all 0.3s ease; }
-  .card:hover { transform:translateY(-2px);border-color:rgba(255,107,53,0.25); }
-  .btn { border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:700;transition:all 0.3s ease;border-radius:12px;display:inline-flex;align-items:center;gap:8px;padding:11px 18px;font-size:14px; }
-  .btn:hover { transform:translateY(-2px);filter:brightness(1.1); }
-  .btn:active { transform:translateY(0); }
-  .btn-primary { background:linear-gradient(135deg,#FF6B35,#FF8C61);color:white; }
-  .btn-secondary { background:linear-gradient(135deg,#4ECDC4,#26D4C8);color:#1A1A2E; }
-  .btn-ghost { background:rgba(255,255,255,0.07);color:#E2E8F0;border:1px solid rgba(255,255,255,0.12); }
-  .btn-danger { background:rgba(239,68,68,0.15);color:#EF4444;border:1px solid rgba(239,68,68,0.25); }
-  input,textarea,select { background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#E2E8F0;font-family:'Nunito',sans-serif;font-size:14px;padding:11px 15px;outline:none;width:100%;transition:all 0.3s; }
-  input:focus,textarea:focus,select:focus { border-color:#FF6B35;box-shadow:0 0 0 3px rgba(255,107,53,0.12); }
-  input::placeholder,textarea::placeholder { color:#475569; }
-  .nav-item { display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:13px;cursor:pointer;transition:all 0.3s;color:#64748B;font-weight:600;font-size:13px;border:1px solid transparent; }
-  .nav-item:hover { background:rgba(255,107,53,0.09);color:#FF6B35;border-color:rgba(255,107,53,0.18); }
-  .nav-item.active { background:linear-gradient(135deg,rgba(255,107,53,0.18),rgba(255,107,53,0.08));color:#FF6B35;border-color:rgba(255,107,53,0.28); }
-  .tab-btn { padding:9px 18px;border-radius:30px;cursor:pointer;font-weight:700;font-size:12px;transition:all 0.3s;border:none;background:rgba(255,255,255,0.06);color:#64748B;font-family:'Nunito',sans-serif; }
-  .tab-btn.active { background:linear-gradient(135deg,#FF6B35,#FF8C61);color:white; }
-  .badge { display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700; }
-  .progress-bar { height:7px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden; }
-  .progress-fill { height:100%;border-radius:4px;transition:width 1.2s ease; }
-  .mood-btn { padding:9px 14px;border-radius:28px;cursor:pointer;transition:all 0.3s;font-size:17px;border:2px solid transparent;background:rgba(255,255,255,0.05); }
-  .mood-btn:hover,.mood-btn.selected { border-color:#FF6B35;background:rgba(255,107,53,0.13);transform:scale(1.12); }
-  .chat-bubble { max-width:72%;padding:10px 14px;border-radius:18px;font-size:13px;line-height:1.55;word-break:break-word;animation:fadeInUp 0.25s ease; }
-  .chat-bubble.sent { background:linear-gradient(135deg,#FF6B35,#FF8C61);color:white;border-bottom-right-radius:4px; }
-  .chat-bubble.received { background:rgba(255,255,255,0.07);color:#E2E8F0;border-bottom-left-radius:4px; }
-  .prayer-card { border-radius:15px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;transition:all 0.3s; }
-  .prayer-card.done { background:rgba(16,185,129,0.09);border:1px solid rgba(16,185,129,0.25); }
-  .prayer-card.next { background:rgba(255,107,53,0.09);border:1px solid rgba(255,107,53,0.28);animation:pulse 2s ease-in-out infinite; }
-  .prayer-card.pending { background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07); }
-  .kid-card { border-radius:22px;padding:24px 18px;text-align:center;cursor:pointer;transition:all 0.3s; }
-  .kid-card:hover { transform:translateY(-6px) scale(1.03); }
-  .drawing-canvas { border-radius:14px;cursor:crosshair;display:block;max-width:100%; }
-  .memory-card { border-radius:18px;overflow:hidden;cursor:pointer;transition:all 0.3s;position:relative; }
-  .memory-card:hover { transform:scale(1.025); }
-  .sos-btn { width:155px;height:155px;border-radius:50%;background:radial-gradient(circle,#FF4444,#CC0000);border:4px solid rgba(255,68,68,0.45);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;color:white;box-shadow:0 0 40px rgba(255,68,68,0.45);transition:all 0.3s; }
-  .sos-btn:hover { transform:scale(1.06);box-shadow:0 0 65px rgba(255,68,68,0.85); }
-  .sos-btn.active { animation:glow 0.6s ease-in-out infinite; }
-  .star-bg { position:absolute;border-radius:50%;background:white;animation:twinkle 2s ease-in-out infinite; }
-  @media(max-width:768px){.sidebar{transform:translateX(-100%);position:fixed;z-index:100;transition:transform 0.3s;}.sidebar.open{transform:translateX(0);}.mobile-header{display:flex !important;}}
+const api = async (method, path, body, token) => {
+  const res = await fetch(`${API}/api${path}`, {
+    method,
+    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+};
+
+const LS = {
+  get: (k, d) => { try { if (typeof window === "undefined") return d; const v = localStorage.getItem("fv4_" + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set: (k, v) => { try { if (typeof window === "undefined") return; localStorage.setItem("fv4_" + k, JSON.stringify(v)); } catch {} },
+  clear: () => { try { if (typeof window === "undefined") return; Object.keys(localStorage).filter(k => k.startsWith("fv4_")).forEach(k => localStorage.removeItem(k)); } catch {} },
+};
+
+const ROLES = ["Father","Mother","Son","Daughter","Brother","Sister","Grandfather","Grandmother","Uncle","Aunt","Other"];
+const ROLE_EMOJI = { Father:"👨‍💼",Mother:"👩‍🦱",Son:"👦",Daughter:"👧",Brother:"👦",Sister:"👧",Grandfather:"👴",Grandmother:"👵",Uncle:"👨",Aunt:"👩",Other:"👤" };
+const MOODS = [{id:"happy",e:"😊",l:"Happy",c:"#22C55E"},{id:"loved",e:"🥰",l:"Loved",c:"#EC4899"},{id:"okay",e:"😐",l:"Okay",c:"#F59E0B"},{id:"tired",e:"😴",l:"Tired",c:"#8B5CF6"},{id:"stressed",e:"😔",l:"Stressed",c:"#EF4444"}];
+const PRAYER_ICONS = ["🌙","☀️","🌤️","🌅","🌃"];
+const PRAYER_NAMES = ["Fajr","Dhuhr","Asr","Maghrib","Isha"];
+
+const DUAS = [
+  {t:"Morning Dua",ar:"أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ وَالْحَمْدُ لِلَّهِ",tr:"Asbahna wa asbahal mulku lillah walhamdu lillah",en:"We have reached morning and sovereignty belongs to Allah"},
+  {t:"Before Eating",ar:"بِسْمِ اللَّهِ وَعَلَى بَرَكَةِ اللَّهِ",tr:"Bismillahi wa ala barakatillah",en:"In the name of Allah and with His blessings"},
+  {t:"After Eating",ar:"الْحَمْدُ لِلَّهِ الَّذِي أَطْعَمَنَا وَسَقَانَا وَجَعَلَنَا مُسْلِمِينَ",tr:"Alhamdulillahilladhi at'amana wa saqana wa ja'alana muslimeen",en:"Praise Allah Who fed us, gave us drink and made us Muslims"},
+  {t:"Before Sleep",ar:"بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا",tr:"Bismika Allahumma amootu wa ahya",en:"In Your name O Allah, I die and I live"},
+  {t:"Entering Home",ar:"بِسْمِ اللَّهِ وَلَجْنَا وَبِسْمِ اللَّهِ خَرَجْنَا",tr:"Bismillahi walajna wa bismillahi kharajna",en:"In the name of Allah we enter and in His name we leave"},
+  {t:"Leaving Home",ar:"بِسْمِ اللَّهِ تَوَكَّلْتُ عَلَى اللَّهِ",tr:"Bismillahi tawakkaltu alallah",en:"In the name of Allah, I place my trust in Allah"},
+  {t:"For Anxiety",ar:"اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ",tr:"Allahumma inni a'udhu bika minal hammi wal hazan",en:"O Allah, I seek refuge in You from worry and grief"},
+  {t:"For Good Health",ar:"اللَّهُمَّ عَافِنِي فِي بَدَنِي",tr:"Allahumma 'afini fi badani",en:"O Allah, grant health to my body"},
+  {t:"Ayatul Kursi",ar:"اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ",tr:"Allahu la ilaha illa huwal hayyul qayyum",en:"Allah - there is no god except Him, the Ever-Living"},
+  {t:"For Parents",ar:"رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا",tr:"Rabbir hamhuma kama rabbayani sagheera",en:"My Lord, have mercy on them as they raised me when small"},
+  {t:"Istikhara",ar:"اللَّهُمَّ إِنِّي أَسْتَخِيرُكَ بِعِلْمِكَ",tr:"Allahumma inni astakhiruka bi'ilmik",en:"O Allah, I seek Your guidance through Your knowledge"},
+  {t:"Travel Dua",ar:"سُبْحَانَ الَّذِي سَخَّرَ لَنَا هَٰذَا",tr:"Subhanal ladhi sakhkhara lana hadha",en:"Glory to Him Who has subjected this to us"},
+];
+
+const STORIES = [
+  {t:"Prophet Ibrahim ﷺ",e:"🌟",age:"5+",d:"The brave prophet who built the Kaaba with his son Ismail ﷺ — a story of courage and faith."},
+  {t:"The Elephant & Spider",e:"🕷️",age:"4+",d:"How a tiny spider helped protect Prophet Muhammad ﷺ in the Cave of Thawr."},
+  {t:"Bilal & the Adhan",e:"🕌",age:"6+",d:"The first muezzin and his beautiful call to prayer that still echoes through history."},
+  {t:"Asma bint Abu Bakr",e:"💪",age:"7+",d:"The courageous woman of two belts who helped during the Hijra."},
+  {t:"Prophet Yusuf ﷺ",e:"👑",age:"8+",d:"A story of patience, forgiveness and complete trust in Allah's plan."},
+  {t:"Salah ad-Din al-Ayyubi",e:"⚔️",age:"9+",d:"The great Muslim leader who showed justice and mercy to all people."},
+];
+
+const QUOTES = [
+  {t:"A family is not just a group of people — it's a universe of love, patience, and grace.",a:"Syed Muzamil"},
+  {t:"In every family dinner, every bedtime story, every shared prayer — life finds its deepest meaning.",a:"Syed Muzamil"},
+  {t:"The greatest wealth is a loving family that grows together in faith and kindness.",a:"Syed Muzamil"},
+  {t:"Every child who feels loved at home carries a light that illuminates the world.",a:"Syed Muzamil"},
+  {t:"Home is not a place — it is the warmth in the hearts of those who love each other.",a:"Syed Muzamil"},
+];
+
+const genMath = () => {
+  const a=Math.floor(Math.random()*12)+1, b=Math.floor(Math.random()*12)+1;
+  const op=Math.random()>.5?"+":"×"; const ans=op==="+"?a+b:a*b;
+  const opts=[ans]; while(opts.length<4){const r=ans+(Math.floor(Math.random()*8)-4); if(r>0&&!opts.includes(r))opts.push(r);}
+  return {q:`${a} ${op} ${b} = ?`, answer:ans, opts:opts.sort(()=>Math.random()-.5)};
+};
+
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&family=Amiri:wght@400;700&display=swap');
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{--navy:#1E3A5F;--amber:#F59E0B;--teal:#0D9488;--cream:#FFF8F0;--white:#FFFDF9;--soft:#F1F5F9;--text:#1A1A2E;--mid:#4A5568;--muted:#94A3B8;--r:16px;--rs:12px;--sh:0 2px 12px rgba(0,0,0,.07);}
+html{height:100%;overflow:hidden;}
+body{font-family:'Nunito',sans-serif;background:var(--cream);color:var(--text);height:100%;overflow:hidden;position:fixed;width:100%;}
+#fv{display:flex;flex-direction:column;height:100%;height:100dvh;overflow:hidden;}
+.topbar{height:54px;min-height:54px;display:flex;align-items:center;gap:10px;padding:0 13px;background:var(--navy);color:white;flex-shrink:0;z-index:100;}
+.tb-brand{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+.tb-ic{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#F59E0B,#EF4444);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.tb-title{font-family:'Fredoka One',cursive;font-size:17px;}
+.tb-sub{font-size:9px;opacity:.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tb-right{display:flex;gap:5px;flex-shrink:0;}
+.tb-btn{width:34px;height:34px;border-radius:9px;border:none;background:rgba(255,255,255,.1);color:white;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;}
+.tb-dot{position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:#EF4444;border:1.5px solid var(--navy);}
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+.page{padding:12px 12px 24px;}
+.bnav{height:58px;min-height:58px;display:flex;background:white;border-top:1px solid rgba(0,0,0,.08);flex-shrink:0;z-index:100;}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:9px;font-weight:700;color:var(--muted);padding:5px 2px;position:relative;}
+.nb.active{color:var(--navy);}
+.nb.active::after{content:'';position:absolute;bottom:6px;width:4px;height:4px;border-radius:50%;background:var(--amber);}
+.ni{font-size:18px;line-height:1;}
+.nb-badge{position:absolute;top:3px;right:calc(50% - 14px);background:#EF4444;color:white;font-size:9px;font-weight:800;padding:1px 4px;border-radius:8px;min-width:15px;text-align:center;}
+.card{background:white;border-radius:var(--r);padding:14px;box-shadow:var(--sh);border:1px solid rgba(0,0,0,.04);margin-bottom:10px;}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.card-t{font-size:13px;font-weight:800;color:var(--navy);}
+.card-lnk{font-size:12px;color:var(--amber);font-weight:700;border:none;background:none;cursor:pointer;font-family:'Nunito',sans-serif;}
+.banner{background:linear-gradient(135deg,#1E3A5F,#0D9488);border-radius:var(--r);padding:18px;color:white;margin-bottom:10px;position:relative;overflow:hidden;}
+.banner::after{content:'';position:absolute;top:-30px;right:-30px;width:130px;height:130px;border-radius:50%;background:rgba(245,158,11,.12);pointer-events:none;}
+.bn-g{font-size:11px;opacity:.55;margin-bottom:2px;}
+.bn-n{font-family:'Fredoka One',cursive;font-size:24px;margin-bottom:2px;}
+.bn-d{font-size:10px;opacity:.45;}
+.bn-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px;}
+.bs{background:rgba(255,255,255,.1);border-radius:8px;padding:7px 4px;text-align:center;}
+.bs-n{font-family:'Fredoka One',cursive;font-size:18px;color:#F59E0B;}
+.bs-l{font-size:8px;opacity:.5;text-transform:uppercase;}
+.quote{background:linear-gradient(135deg,#FEF3C7,#FEE2E2);border-radius:var(--rs);padding:10px 12px;border-left:3px solid var(--amber);margin-bottom:10px;}
+.quote-t{font-size:11px;color:var(--navy);font-style:italic;font-weight:600;line-height:1.5;}
+.quote-a{font-size:10px;color:var(--amber);font-weight:700;margin-top:3px;}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.qcard{border-radius:var(--r);padding:14px 10px;text-align:center;border:none;font-family:'Nunito',sans-serif;cursor:pointer;}
+.qcard:active{opacity:.85;transform:scale(.98);}
+.qc-i{font-size:24px;margin-bottom:5px;}
+.qc-l{font-size:12px;font-weight:800;color:white;}
+.qc-s{font-size:10px;color:rgba(255,255,255,.7);margin-top:1px;}
+.mem-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:5px;-webkit-overflow-scrolling:touch;}
+.mem-scroll::-webkit-scrollbar{display:none;}
+.mc{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;cursor:pointer;}
+.mc-av{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;position:relative;background:var(--soft);border:2px solid rgba(0,0,0,.05);}
+.mc-on{position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:#22C55E;border:2px solid white;}
+.mc-n{font-size:10px;font-weight:700;color:var(--navy);max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;}
+.add-mc{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;cursor:pointer;}
+.add-mc-av{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;border:2px dashed var(--amber);background:#FFFBEB;}
+.pr-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;margin-bottom:5px;}
+.pr-row.passed{background:#F8FAFC;}.pr-row.next{background:linear-gradient(135deg,#1E3A5F,#0D9488);color:white;}.pr-row.upcoming{background:white;border:1px solid rgba(0,0,0,.06);}
+.med-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.04);}
+.med-row:last-child{border-bottom:none;}
+.med-ic{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.med-btn{font-size:10px;font-weight:700;padding:5px 9px;border-radius:15px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap;flex-shrink:0;}
+.taken{background:#DCFCE7;color:#16A34A;}.pending{background:#FEF3C7;color:#92400E;}
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.hcard{border-radius:var(--r);padding:14px;color:white;position:relative;overflow:hidden;}
+.hc-l{font-size:9px;font-weight:700;text-transform:uppercase;opacity:.7;}
+.hc-v{font-family:'Fredoka One',cursive;font-size:24px;margin:3px 0 1px;}
+.hc-u{font-size:10px;opacity:.6;}
+.hc-ic{position:absolute;right:10px;top:10px;font-size:22px;opacity:.2;}
+.hbar{background:rgba(0,0,0,.15);border-radius:10px;height:4px;margin-top:7px;overflow:hidden;}
+.hbar-f{height:100%;border-radius:10px;background:rgba(255,255,255,.6);transition:width .5s;}
+.wgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:7px;}
+.wc{aspect-ratio:1;border-radius:7px;border:2px solid rgba(14,165,233,.25);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.wc.full{background:#E0F2FE;border-color:#0EA5E9;}
+.ai-card{background:linear-gradient(135deg,#1E3A5F,#0D9488);border-radius:var(--r);padding:16px;color:white;margin-bottom:10px;}
+.ai-title{font-family:'Fredoka One',cursive;font-size:16px;margin-bottom:6px;}
+.ai-resp{background:rgba(255,255,255,.1);border-radius:var(--rs);padding:12px;font-size:12px;line-height:1.7;margin-top:8px;}
+.ai-row{display:flex;gap:7px;margin-top:8px;}
+.ai-inp{flex:1;padding:9px 12px;border-radius:10px;border:none;font-family:'Nunito',sans-serif;font-size:13px;outline:none;background:rgba(255,255,255,.15);color:white;}
+.ai-inp::placeholder{color:rgba(255,255,255,.5);}
+.ai-btn{padding:9px 14px;border-radius:10px;border:none;background:#F59E0B;color:white;font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;cursor:pointer;flex-shrink:0;}
+.pgrid5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px;}
+.pc{border-radius:var(--rs);padding:8px 4px;text-align:center;}
+.pc.passed{background:#F1F5F9;color:#94A3B8;}.pc.next{background:linear-gradient(135deg,#1E3A5F,#0D9488);color:white;}.pc.upcoming{background:white;border:1px solid rgba(0,0,0,.07);color:var(--navy);}
+.pc-icon{font-size:16px;margin-bottom:3px;}.pc-name{font-size:9px;font-weight:800;text-transform:uppercase;}.pc-time{font-size:10px;font-weight:700;margin-top:2px;}
+.qibla-wrap{width:160px;height:160px;margin:0 auto 10px;position:relative;}
+.qibla-outer{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#1E3A5F,#0D9488);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 30px rgba(30,58,95,.3);position:relative;}
+.qibla-ring{position:absolute;inset:10px;border-radius:50%;border:1px solid rgba(255,255,255,.2);}
+.qibla-dirs{position:absolute;inset:0;pointer-events:none;}
+.qd{position:absolute;font-size:10px;color:rgba(255,255,255,.7);font-weight:700;}
+.qd.n{top:8px;left:50%;transform:translateX(-50%);}
+.qd.s{bottom:8px;left:50%;transform:translateX(-50%);}
+.qd.e{right:8px;top:50%;transform:translateY(-50%);}
+.qd.w{left:8px;top:50%;transform:translateY(-50%);}
+.qibla-arrow{font-size:38px;transition:transform .3s ease;}
+.tb-btn-wrap{text-align:center;}
+.tasbeeh-btn{width:110px;height:110px;border-radius:50%;background:linear-gradient(135deg,#1E3A5F,#0D9488);border:none;cursor:pointer;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto;box-shadow:0 6px 24px rgba(30,58,95,.3);}
+.tasbeeh-btn:active{transform:scale(.93);}
+.tn{font-family:'Fredoka One',cursive;font-size:32px;line-height:1;}.tl{font-size:10px;opacity:.7;}
+.treset{margin-top:10px;background:none;border:1px solid rgba(0,0,0,.1);border-radius:20px;padding:5px 16px;cursor:pointer;font-size:11px;color:var(--muted);font-family:'Nunito',sans-serif;}
+.arabic{font-family:'Amiri',serif;font-size:18px;direction:rtl;text-align:right;color:var(--navy);line-height:1.8;}
+.translit{font-style:italic;color:var(--teal);font-size:12px;margin:3px 0;}
+.meaning{font-size:11px;color:var(--muted);}
+.dua-card{background:white;border-radius:var(--rs);padding:14px;border-left:3px solid var(--teal);margin-bottom:8px;box-shadow:var(--sh);}
+.dua-t{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--teal);font-weight:800;margin-bottom:7px;}
+.ram-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-top:8px;}
+.rd{aspect-ratio:1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;cursor:pointer;}
+.rd.fasted{background:var(--teal);color:white;}.rd.today-r{background:var(--amber);color:white;}.rd.unfasted{background:#F1F5F9;color:#94A3B8;}
+.kids-banner{background:linear-gradient(135deg,#FF6B6B,#FF8E53,#FFC93C);border-radius:var(--r);padding:16px;color:white;text-align:center;margin-bottom:10px;}
+.ktabs{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.ktabs::-webkit-scrollbar{display:none;}
+.ktab{padding:7px 14px;border-radius:25px;border:none;font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;}
+.ktab.active{color:white;background:linear-gradient(135deg,#FF6B6B,#FFC93C);}
+.ktab:not(.active){background:white;color:var(--mid);box-shadow:var(--sh);}
+.alpha-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;}
+.ab{aspect-ratio:1;border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'Fredoka One',cursive;font-size:16px;cursor:pointer;background:white;box-shadow:var(--sh);}
+.ab:active{transform:scale(1.15);}
+.math-box{background:linear-gradient(135deg,#EDE9FE,#E0F2FE);border-radius:var(--r);padding:18px;text-align:center;}
+.math-q{font-family:'Fredoka One',cursive;font-size:30px;color:var(--navy);margin-bottom:12px;}
+.math-opts{display:grid;grid-template-columns:1fr 1fr;gap:7px;max-width:220px;margin:0 auto;}
+.mo{padding:10px;border-radius:10px;border:2px solid rgba(0,0,0,.08);background:white;font-family:'Fredoka One',cursive;font-size:18px;cursor:pointer;color:var(--navy);}
+.mo:active{transform:scale(.95);}
+.mo.correct{background:#16A34A;color:white;border-color:#16A34A;}
+.mo.wrong{background:#EF4444;color:white;border-color:#EF4444;}
+.story-card{background:white;border-radius:var(--r);padding:12px;cursor:pointer;box-shadow:var(--sh);margin-bottom:8px;}
+.story-card:active{opacity:.85;}
+.draw-toolbar{display:flex;gap:5px;align-items:center;padding:7px;background:white;border-radius:var(--rs) var(--rs) 0 0;border-bottom:1px solid rgba(0,0,0,.07);flex-wrap:wrap;}
+.csw{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0;}
+.csw:active,.csw.sel{transform:scale(1.3);border-color:var(--navy);}
+.draw-cv{display:block;width:100%;background:white;border-radius:0 0 var(--rs) var(--rs);touch-action:none;}
+.cr{display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:var(--rs);margin-bottom:6px;cursor:pointer;border:1px solid rgba(0,0,0,.05);box-shadow:var(--sh);}
+.cr:active{background:var(--cream);}
+.cr-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;background:var(--soft);position:relative;}
+.cr-n{font-size:13px;font-weight:800;color:var(--navy);}
+.cr-p{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.ubadge{background:#EF4444;color:white;font-size:9px;font-weight:800;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.chat-win{display:flex;flex-direction:column;height:100%;overflow:hidden;}
+.cw-hd{padding:10px 12px;background:var(--navy);color:white;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.cw-back{background:none;border:none;color:white;font-size:20px;cursor:pointer;padding:0 4px 0 0;}
+.cw-acts{margin-left:auto;display:flex;gap:6px;}
+.cw-act{width:32px;height:32px;border-radius:8px;border:none;background:rgba(255,255,255,.15);color:white;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.chat-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--cream);-webkit-overflow-scrolling:touch;}
+.mw{display:flex;flex-direction:column;max-width:78%;}
+.mw.sent{align-self:flex-end;align-items:flex-end;}
+.mw.received{align-self:flex-start;align-items:flex-start;}
+.ms{font-size:10px;font-weight:700;color:var(--muted);margin-bottom:2px;padding:0 3px;}
+.mb-text{padding:8px 11px;border-radius:13px;font-size:13px;line-height:1.5;word-break:break-word;}
+.sent .mb-text{background:linear-gradient(135deg,#1E3A5F,#0D9488);color:white;border-bottom-right-radius:3px;}
+.received .mb-text{background:white;color:var(--text);border-bottom-left-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.mt-msg{font-size:9px;color:var(--muted);margin-top:2px;padding:0 3px;}
+.chat-inp-wrap{flex-shrink:0;background:white;border-top:1px solid rgba(0,0,0,.07);padding:8px 10px;display:flex;align-items:flex-end;gap:7px;}
+.chat-inp{flex:1;padding:9px 13px;border-radius:22px;border:1.5px solid rgba(0,0,0,.1);font-family:'Nunito',sans-serif;font-size:14px;outline:none;background:var(--cream);resize:none;min-height:38px;max-height:100px;line-height:1.4;overflow-y:auto;}
+.chat-inp:focus{border-color:var(--amber);}
+.send-btn{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#F59E0B,#EF4444);border:none;cursor:pointer;font-size:16px;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.send-btn:active{transform:scale(.93);}
+.em-row{padding:6px 10px;background:white;display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid rgba(0,0,0,.07);}
+.typing-ind{font-size:11px;color:var(--muted);font-style:italic;padding:0 14px 4px;}
+.call-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#1E3A5F,#0D9488);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;}
+.call-av{font-size:70px;margin-bottom:12px;}
+.call-name{font-family:'Fredoka One',cursive;font-size:28px;margin-bottom:6px;}
+.call-status{font-size:14px;opacity:.7;margin-bottom:40px;}
+.call-btns{display:flex;gap:20px;}
+.call-btn{width:60px;height:60px;border-radius:50%;border:none;font-size:24px;cursor:pointer;}
+.call-end{background:#EF4444;}.call-accept{background:#22C55E;}.call-mute{background:rgba(255,255,255,.2);}
+.mem-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.mem-card{background:white;border-radius:var(--r);overflow:hidden;cursor:pointer;box-shadow:var(--sh);border:1px solid rgba(0,0,0,.04);}
+.mem-card:active{opacity:.85;}
+.mem-th{height:90px;display:flex;align-items:center;justify-content:center;font-size:36px;position:relative;}
+.mem-lock{position:absolute;inset:0;background:rgba(30,58,95,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;gap:2px;}
+.mem-bd{padding:8px;}
+.mem-type{font-size:9px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;}
+.mem-ttl{font-size:12px;font-weight:800;color:var(--navy);margin:2px 0;}
+.mem-dt{font-size:10px;color:var(--muted);}
+.mem-ft{display:flex;justify-content:space-between;padding:6px 8px;background:var(--cream);border-top:1px solid rgba(0,0,0,.04);font-size:10px;}
+.sos-btn{width:150px;height:150px;border-radius:50%;background:linear-gradient(135deg,#EF4444,#DC2626);border:7px solid #FEE2E2;cursor:pointer;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 8px 35px rgba(239,68,68,.4);}
+.sos-btn:active{transform:scale(.95);}
+.sos-alert{background:linear-gradient(135deg,#FEE2E2,#FECACA);border:2px solid #FCA5A5;border-radius:var(--r);padding:14px;margin-bottom:10px;animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.3);}50%{box-shadow:0 0 0 8px rgba(239,68,68,0);}}
+.ss{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;margin:14px 0 7px;}
+.si{background:white;border-radius:var(--rs);padding:12px 13px;display:flex;align-items:center;gap:11px;margin-bottom:6px;cursor:pointer;border:1px solid rgba(0,0,0,.05);}
+.si:active{background:var(--cream);}
+.si-ic{font-size:19px;flex-shrink:0;}
+.si-t{font-size:13px;font-weight:700;color:var(--navy);}
+.si-d{font-size:11px;color:var(--muted);margin-top:1px;}
+.toggle{width:38px;height:21px;border-radius:11px;cursor:pointer;transition:background .25s;position:relative;border:none;flex-shrink:0;}
+.toggle.on{background:var(--teal);}.toggle.off{background:#CBD5E0;}
+.toggle::after{content:'';position:absolute;top:2.5px;width:16px;height:16px;border-radius:50%;background:white;transition:left .25s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.toggle.on::after{left:19px;}.toggle.off::after{left:3px;}
+.about-card{background:linear-gradient(135deg,#1E3A5F,#0D9488);border-radius:var(--r);padding:20px;color:white;text-align:center;margin-bottom:10px;}
+.about-q{background:rgba(245,158,11,.15);border-radius:10px;padding:10px 13px;border-left:3px solid #F59E0B;text-align:left;margin-top:12px;}
+.ob{position:fixed;inset:0;background:linear-gradient(160deg,#1E3A5F,#0D9488);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;z-index:1000;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.ob-card{background:white;border-radius:18px;padding:20px;width:100%;max-width:380px;}
+.ob-h{font-family:'Fredoka One',cursive;font-size:17px;color:var(--navy);margin-bottom:14px;}
+.ob-lbl{font-size:11px;font-weight:700;color:var(--mid);margin-bottom:5px;display:block;}
+.ob-inp{width:100%;padding:11px 13px;border-radius:11px;border:1.5px solid rgba(0,0,0,.1);font-family:'Nunito',sans-serif;font-size:14px;outline:none;margin-bottom:11px;background:white;-webkit-appearance:none;}
+.ob-inp:focus{border-color:var(--amber);}
+.ob-btn{width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#F59E0B,#EF4444);color:white;font-family:'Fredoka One',cursive;font-size:17px;cursor:pointer;margin-top:3px;}
+.ob-btn:disabled{opacity:.6;}
+.ob-or{text-align:center;color:var(--muted);font-size:12px;margin:12px 0;font-weight:600;}
+.ob-join{width:100%;padding:11px;border-radius:12px;border:2px solid var(--amber);background:transparent;color:var(--amber);font-family:'Fredoka One',cursive;font-size:16px;cursor:pointer;}
+.role-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px;}
+.rb{padding:9px 5px;border-radius:10px;border:2px solid rgba(0,0,0,.08);background:white;font-family:'Nunito',sans-serif;font-size:11px;font-weight:700;cursor:pointer;text-align:center;}
+.rb:active,.rb.sel{border-color:var(--amber);background:#FEF3C7;}
+.rb-e{font-size:18px;display:block;margin-bottom:2px;}
+.mo-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:flex-end;justify-content:center;}
+.modal{background:white;border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.modal-t{font-family:'Fredoka One',cursive;font-size:18px;color:var(--navy);margin-bottom:14px;}
+.notif-panel{position:fixed;top:60px;left:10px;right:10px;background:white;border-radius:var(--r);box-shadow:0 8px 30px rgba(0,0,0,.15);z-index:300;padding:12px;border:1px solid rgba(0,0,0,.07);}
+.ni-item{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,.04);}
+.ni-item:last-child{border-bottom:none;}
+.score-box{background:linear-gradient(135deg,#F59E0B,#EF4444);border-radius:var(--r);padding:14px;color:white;text-align:center;margin-bottom:10px;}
+.score-v{font-family:'Fredoka One',cursive;font-size:42px;line-height:1;}
+.chal{display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--rs);border:1px solid rgba(0,0,0,.06);background:white;margin-bottom:7px;cursor:pointer;box-shadow:var(--sh);}
+.chal.done{background:#F0FDF4;border-color:#86EFAC;}
+.invite-box{background:#FEF3C7;border-radius:10px;padding:10px 12px;}
+.invite-code{font-family:monospace;font-size:18px;font-weight:900;color:var(--amber);letter-spacing:2px;}
+.fade{animation:fadeUp .3s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.txt-c{text-align:center;}.txt-m{color:var(--muted);font-size:11px;}
+.row{display:flex;align-items:center;gap:8px;}.flex1{flex:1;min-width:0;}
+.mt8{margin-top:8px;}.mb10{margin-bottom:10px;}
+.btn{padding:8px 14px;border-radius:10px;border:none;font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;cursor:pointer;}
+.btn:active{opacity:.85;}
+.btn-p{background:var(--navy);color:white;}.btn-a{background:var(--amber);color:white;}
+.btn-sm{padding:6px 11px;font-size:11px;border-radius:8px;}
+.sec-t{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;margin:12px 0 7px;}
+.footer{text-align:center;padding:14px;font-size:10px;color:var(--muted);}
+.inp{width:100%;padding:10px 13px;border-radius:11px;border:1.5px solid rgba(0,0,0,.1);font-family:'Nunito',sans-serif;font-size:13px;outline:none;margin-bottom:10px;-webkit-appearance:none;}
+.inp:focus{border-color:var(--amber);}
+.spin{width:28px;height:28px;border-radius:50%;border:3px solid var(--soft);border-top-color:var(--amber);animation:spin .7s linear infinite;margin:0 auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.conn-bar{background:#22C55E;color:white;text-align:center;font-size:10px;font-weight:700;padding:3px;flex-shrink:0;}
+.conn-bar.off{background:#EF4444;}
 `;
 
-// ── Tiny SVG Icon ──
-const I = ({ n, s = 18, c = "currentColor" }) => {
-  const p = {
-    dashboard: "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10",
-    health: "M22 12h-4l-3 9L9 3l-3 9H2",
-    moon: "M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z",
-    star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
-    chat: "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z",
-    camera: "M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z M12 17a4 4 0 100-8 4 4 0 000 8z",
-    memory: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z",
-    emergency: "M12 9v4 M12 17h.01 M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z",
-    settings: "M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z",
-    send: "M22 2L11 13 M22 2L15 22 8 13 2 2z",
-    plus: "M12 5v14 M5 12h14",
-    close: "M18 6L6 18 M6 6l12 12",
-    menu: "M3 12h18 M3 6h18 M3 18h18",
-    check: "M20 6L9 17l-5-5",
-    lock: "M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2z M7 11V7a5 5 0 0110 0v4",
-    mic: "M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z M19 10v2a7 7 0 01-14 0v-2 M12 19v4 M8 23h8",
-    trophy: "M18 2H6v7a6 6 0 0012 0V2z M6 9H4.5a2.5 2.5 0 000 5H6 M18 9h1.5a2.5 2.5 0 010 5H18 M4 22h16 M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22 M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22",
+// Drawing Board
+function DrawingBoard() {
+  const ref = useRef(null);
+  const [drawing, setDrawing] = useState(false);
+  const [color, setColor] = useState("#1E3A5F");
+  const [size, setSize] = useState(4);
+  const last = useRef(null);
+  const COLORS = ["#1E3A5F","#EF4444","#F59E0B","#16A34A","#7C3AED","#0EA5E9","#EC4899","#000","#fff"];
+
+  useEffect(() => {
+    const c = ref.current; if (!c) return;
+    const dpr = window.devicePixelRatio || 1;
+    c.width = c.offsetWidth * dpr; c.height = 240 * dpr;
+    const ctx = c.getContext("2d"); ctx.scale(dpr, dpr);
+    ctx.fillStyle = "white"; ctx.fillRect(0, 0, c.offsetWidth, 240);
+  }, []);
+
+  const getPos = (e, c) => {
+    const r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left) * (c.width / r.width / dpr), y: (src.clientY - r.top) * (c.height / r.height / dpr) };
   };
-  return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {(p[n] || "").split(" M").map((d, i) => <path key={i} d={i === 0 ? d : "M" + d} />)}
-    </svg>
-  );
-};
+  const start = useCallback((e) => { e.preventDefault(); last.current = getPos(e, ref.current); setDrawing(true); }, []);
+  const move = useCallback((e) => {
+    e.preventDefault(); if (!drawing) return;
+    const c = ref.current, ctx = c.getContext("2d"), pos = getPos(e, c);
+    ctx.beginPath(); ctx.moveTo(last.current.x, last.current.y); ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = "round"; ctx.stroke(); last.current = pos;
+  }, [drawing, color, size]);
+  const stop = useCallback(() => setDrawing(false), []);
+  const clear = () => { const c = ref.current, ctx = c.getContext("2d"); ctx.fillStyle="white"; ctx.fillRect(0,0,c.offsetWidth,240); };
 
-// ── Stars ──
-const Stars = () => {
-  const arr = Array.from({ length: 35 }, (_, i) => ({ id: i, left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, size: Math.random() * 2.5 + 0.5, delay: `${Math.random() * 3}s` }));
   return (
-    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
-      {arr.map(s => <div key={s.id} className="star-bg" style={{ left: s.left, top: s.top, width: s.size, height: s.size, animationDelay: s.delay }} />)}
+    <div className="card">
+      <div className="card-hd"><div className="card-t">🎨 Drawing Board</div><button className="card-lnk" onClick={clear}>Clear</button></div>
+      <div className="draw-toolbar">
+        {COLORS.map(cl => <div key={cl} className={`csw${color===cl?" sel":""}`} style={{background:cl,border:cl==="#fff"?"2px solid #CBD5E0":undefined}} onClick={()=>setColor(cl)} />)}
+        <select value={size} onChange={e=>setSize(+e.target.value)} style={{marginLeft:"auto",padding:"3px 6px",borderRadius:7,border:"1px solid rgba(0,0,0,.1)",fontFamily:"Nunito",fontSize:11}}>
+          <option value={2}>Thin</option><option value={4}>Medium</option><option value={8}>Thick</option>
+        </select>
+      </div>
+      <canvas ref={ref} className="draw-cv" style={{height:240}}
+        onMouseDown={start} onMouseMove={move} onMouseUp={stop} onMouseLeave={stop}
+        onTouchStart={start} onTouchMove={move} onTouchEnd={stop} />
     </div>
   );
-};
+}
 
-// ── Sidebar ──
-const Sidebar = ({ active, setActive, open }) => {
-  const nav = [
-    { id: "dashboard", label: "Dashboard", icon: "dashboard", clr: "#FF6B35" },
-    { id: "health", label: "Health Guardian", icon: "health", clr: "#10B981" },
-    { id: "faith", label: "Faith Companion", icon: "moon", clr: "#A855F7" },
-    { id: "kids", label: "Kids World", icon: "star", clr: "#FFE66D" },
-    { id: "chat", label: "Family Chat", icon: "chat", clr: "#4ECDC4" },
-    { id: "memories", label: "Memories", icon: "memory", clr: "#EC4899" },
-    { id: "emergency", label: "Emergency SOS", icon: "emergency", clr: "#EF4444" },
-    { id: "settings", label: "Settings", icon: "settings", clr: "#94A3B8" },
+function OnboardingSlides({ onDone }) {
+  const [slide, setSlide] = useState(0);
+  const SLIDES = [
+    {bg:"linear-gradient(135deg,#1E3A5F,#0D9488)",icon:"🏠",title:"Welcome to FamilyVerse",sub:"Your private family universe",desc:"One app for your whole family — health, chat, faith, memories and safety. All in one private place."},
+    {bg:"linear-gradient(135deg,#6366F1,#8B5CF6)",icon:"✨",title:"Everything In One Place",sub:"6 powerful features",features:[{e:"💬",t:"Real-time Family Chat"},{e:"❤️",t:"Health & Medicine"},{e:"☪️",t:"Prayer Times & Qibla"},{e:"🤖",t:"AI Health Assistant"},{e:"📸",t:"Memory Capsule"},{e:"🆘",t:"Emergency SOS"}]},
+    {bg:"linear-gradient(135deg,#0D9488,#22C55E)",icon:"🔒",title:"100% Private & Secure",sub:"Only your family",desc:"Secret invite code. No strangers. No ads. More private than WhatsApp."},
+    {bg:"linear-gradient(135deg,#F59E0B,#EF4444)",icon:"🚀",title:"Ready to Connect!",sub:"Takes 1 minute",steps:[{n:"1",t:"Create your family"},{n:"2",t:"Share the invite code"},{n:"3",t:"Family joins instantly"},{n:"4",t:"Start using together! 🎉"}]},
   ];
-  return (
-    <div className={`sidebar ${open ? "open" : ""}`} style={{ width: 255, minHeight: "100vh", background: "linear-gradient(180deg,#0D0D1A,#1A1A2E)", borderRight: "1px solid rgba(255,255,255,0.05)", padding: "22px 14px", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, zIndex: 100 }}>
-      {/* Logo */}
-      <div style={{ textAlign: "center", marginBottom: 28 }}>
-        <div style={{ fontFamily: "'Fredoka One',cursive", fontSize: 28, background: "linear-gradient(135deg,#FF6B35,#FFE66D)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>🌟 FamilyVerse</div>
-        <div style={{ fontSize: 9, color: "#3D3D5C", letterSpacing: 2, marginTop: 2 }}>THE INTELLIGENT FAMILY UNIVERSE</div>
+  const s=SLIDES[slide],isLast=slide===SLIDES.length-1;
+  return(
+    <div style={{position:"fixed",inset:0,background:s.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"30px 24px",zIndex:2000}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}} .ob-slide{animation:fadeUp .35s ease;}`}</style>
+      <button onClick={onDone} style={{position:"absolute",top:50,right:20,background:"rgba(255,255,255,.2)",border:"none",color:"white",padding:"6px 16px",borderRadius:20,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Skip</button>
+      <div className="ob-slide" key={slide} style={{textAlign:"center",maxWidth:340,width:"100%"}}>
+        <div style={{fontSize:64,marginBottom:12,lineHeight:1}}>{s.icon}</div>
+        <div style={{fontSize:24,fontWeight:800,color:"white",marginBottom:6,lineHeight:1.2}}>{s.title}</div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,.7)",marginBottom:24}}>{s.sub}</div>
+        {s.desc&&<div style={{fontSize:14,color:"rgba(255,255,255,.9)",lineHeight:1.8,background:"rgba(255,255,255,.12)",borderRadius:16,padding:"16px 20px"}}>{s.desc}</div>}
+        {s.features&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{s.features.map((f,i)=><div key={i} style={{background:"rgba(255,255,255,.15)",borderRadius:14,padding:"12px 10px",display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:22}}>{f.e}</span><span style={{fontSize:12,fontWeight:600,color:"white",textAlign:"left"}}>{f.t}</span></div>)}</div>}
+        {s.steps&&<div style={{display:"flex",flexDirection:"column",gap:10}}>{s.steps.map((st,i)=><div key={i} style={{background:"rgba(255,255,255,.15)",borderRadius:14,padding:"12px 16px",display:"flex",alignItems:"center",gap:14}}><div style={{width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:"white",flexShrink:0}}>{st.n}</div><span style={{fontSize:14,fontWeight:600,color:"white"}}>{st.t}</span></div>)}</div>}
       </div>
-      {/* Family badge */}
-      <div style={{ background: "linear-gradient(135deg,rgba(255,107,53,0.12),rgba(255,230,109,0.07))", border: "1px solid rgba(255,107,53,0.18)", borderRadius: 13, padding: "11px 13px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ fontSize: 26 }}>👨‍👩‍👧‍👦</div>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#FF6B35" }}>The Ahmed Family</div>
-          <div style={{ fontSize: 10, color: "#475569" }}>5 members · Private</div>
-        </div>
-      </div>
-      {/* Nav */}
-      <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
-        {nav.map(item => (
-          <div key={item.id} className={`nav-item ${active === item.id ? "active" : ""}`} onClick={() => setActive(item.id)}>
-            <div style={{ color: active === item.id ? item.clr : "#475569" }}><I n={item.icon} s={17} /></div>
-            <span>{item.label}</span>
-            {item.id === "chat" && <span style={{ marginLeft: "auto", background: "#FF6B35", color: "white", borderRadius: "50%", width: 17, height: 17, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800 }}>3</span>}
-            {item.id === "emergency" && <span style={{ marginLeft: "auto", width: 7, height: 7, borderRadius: "50%", background: "#EF4444", animation: "pulse 1s infinite" }} />}
-          </div>
-        ))}
-      </nav>
-      {/* Quote */}
-      <div style={{ margin: "20px 0 0", padding: "12px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 13, borderLeft: "3px solid #FF6B35" }}>
-        <p style={{ fontSize: 10, color: "#475569", fontStyle: "italic", lineHeight: 1.6 }}>"A family that grows together, glows together."</p>
-        <p style={{ fontSize: 10, color: "#FF6B35", marginTop: 5, fontWeight: 700 }}>— Syed Muzamil</p>
-      </div>
-      <div style={{ textAlign: "center", fontSize: 9, color: "#2D2D4E", marginTop: 14 }}>Crafted with care for families.</div>
-    </div>
-  );
-};
-
-// ── Dashboard ──
-const Dashboard = ({ setActive }) => {
-  const [mood, setMood] = useState(null);
-  const [time, setTime] = useState(new Date());
-  useEffect(() => { const t = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(t); }, []);
-
-  const tasks = [
-    { text: "Give Dad blood pressure meds", done: true, urgent: false },
-    { text: "Asr prayer reminder", done: false, urgent: true },
-    { text: "Ahmed's math homework", done: false, urgent: false },
-    { text: "Family dinner at 7pm", done: false, urgent: false },
-    { text: "Water intake check", done: true, urgent: false },
-  ];
-  const meds = [
-    { name: "Metformin", person: "Grandma", time: "8:00 AM", done: true },
-    { name: "Lisinopril", person: "Dad", time: "9:00 AM", done: true },
-    { name: "Vitamin D", person: "All", time: "12:00 PM", done: false },
-    { name: "Blood Pressure", person: "Dad", time: "8:00 PM", done: false },
-  ];
-  const fMoods = [{ n: "Mama", e: "😄" }, { n: "Baba", e: "😊" }, { n: "Ahmed", e: "😐" }, { n: "Sara", e: "😄" }, { n: "Grandma", e: "😔" }];
-  const qCards = [
-    { icon: "health", label: "Health", color: "#10B981", bg: "rgba(16,185,129,0.1)", page: "health" },
-    { icon: "moon", label: "Prayer", color: "#A855F7", bg: "rgba(168,85,247,0.1)", page: "faith" },
-    { icon: "star", label: "Kids", color: "#FFE66D", bg: "rgba(255,230,109,0.1)", page: "kids" },
-    { icon: "chat", label: "Chat", color: "#4ECDC4", bg: "rgba(78,205,196,0.1)", page: "chat" },
-    { icon: "memory", label: "Memories", color: "#EC4899", bg: "rgba(236,72,153,0.1)", page: "memories" },
-    { icon: "emergency", label: "SOS", color: "#EF4444", bg: "rgba(239,68,68,0.1)", page: "emergency" },
-  ];
-
-  return (
-    <div style={{ padding: 22, maxWidth: 1100 }} className="fade-in">
-      {/* Header */}
-      <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
-        <div>
-          <h1 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 30, background: "linear-gradient(135deg,#FF6B35,#FFE66D)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Good Evening, Family! 🌙</h1>
-          <p style={{ color: "#475569", marginTop: 4, fontSize: 13 }}>{time.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · {time.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</p>
-        </div>
-        <div style={{ background: "linear-gradient(135deg,rgba(255,107,53,0.12),rgba(255,230,109,0.08))", border: "1px solid rgba(255,107,53,0.18)", borderRadius: 15, padding: "12px 18px", textAlign: "right" }}>
-          <div style={{ fontSize: 10, color: "#475569" }}>HYDERABAD, IN</div>
-          <div style={{ fontSize: 22, marginTop: 2 }}>🌤️ 28°C</div>
-          <div style={{ fontSize: 10, color: "#94A3B8" }}>Partly Cloudy</div>
-        </div>
-      </div>
-
-      {/* Quote */}
-      <div style={{ background: "linear-gradient(135deg,rgba(168,85,247,0.12),rgba(99,102,241,0.08))", border: "1px solid rgba(168,85,247,0.18)", borderRadius: 17, padding: "16px 22px", marginBottom: 22, display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{ fontSize: 28 }}>✨</div>
-        <div>
-          <p style={{ fontSize: 14, color: "#E2E8F0", fontStyle: "italic", lineHeight: 1.6 }}>"The family is one of nature's masterpieces — nurture it with love, faith, and togetherness."</p>
-          <p style={{ fontSize: 11, color: "#A855F7", marginTop: 5, fontWeight: 700 }}>— Syed Muzamil</p>
-        </div>
-      </div>
-
-      {/* Quick access */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 10, marginBottom: 24 }}>
-        {qCards.map(c => (
-          <div key={c.label} onClick={() => setActive(c.page)} style={{ background: c.bg, border: `1px solid ${c.color}30`, borderRadius: 16, padding: "16px 10px", textAlign: "center", cursor: "pointer", transition: "all 0.3s" }}
-            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = `0 10px 28px ${c.color}28`; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}>
-            <div style={{ color: c.color, display: "flex", justifyContent: "center", marginBottom: 7 }}><I n={c.icon} s={22} c={c.color} /></div>
-            <div style={{ fontSize: 11, fontWeight: 700 }}>{c.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 20 }}>
-        {/* Tasks */}
-        <div className="card">
-          <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 14, display: "flex", alignItems: "center", gap: 7 }}><span style={{ color: "#FF6B35" }}>✅</span> Today's Tasks</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-            {tasks.map((t, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 11, background: t.done ? "rgba(16,185,129,0.07)" : t.urgent ? "rgba(255,107,53,0.07)" : "rgba(255,255,255,0.03)", border: `1px solid ${t.done ? "rgba(16,185,129,0.18)" : t.urgent ? "rgba(255,107,53,0.18)" : "rgba(255,255,255,0.05)"}` }}>
-                <div style={{ width: 19, height: 19, borderRadius: 5, background: t.done ? "#10B981" : "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  {t.done && <I n="check" s={11} c="white" />}
-                </div>
-                <span style={{ fontSize: 12, color: t.done ? "#475569" : "#E2E8F0", textDecoration: t.done ? "line-through" : "none", flex: 1 }}>{t.text}</span>
-                {t.urgent && !t.done && <span className="badge" style={{ background: "rgba(255,107,53,0.2)", color: "#FF6B35" }}>Urgent</span>}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Mood */}
-        <div className="card">
-          <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 14 }}>💞 Family Mood Radar</h3>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-            {fMoods.map(m => (
-              <div key={m.n} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "rgba(255,255,255,0.04)", borderRadius: 11, padding: "9px 13px", flex: 1, minWidth: 50 }}>
-                <div style={{ fontSize: 22 }}>{m.e}</div>
-                <div style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600 }}>{m.n}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 13, padding: "12px 14px", marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "#475569", marginBottom: 7 }}>Overall Family Vibe</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ flex: 1 }}><div className="progress-bar"><div className="progress-fill" style={{ width: "72%", background: "linear-gradient(90deg,#FF6B35,#10B981)" }} /></div></div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#10B981" }}>72% Happy 😊</span>
-            </div>
-          </div>
-          <div style={{ fontSize: 11, color: "#475569", marginBottom: 8 }}>How are YOU feeling today?</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {[["😄", "Happy"], ["😊", "Good"], ["😐", "Neutral"], ["😔", "Sad"], ["😤", "Stressed"]].map(([e, l]) => (
-              <button key={l} className={`mood-btn ${mood === l ? "selected" : ""}`} onClick={() => setMood(l)} title={l}>{e}</button>
-            ))}
-          </div>
-          {mood && <p style={{ fontSize: 11, color: "#10B981", marginTop: 7 }}>✓ Mood logged: {mood}</p>}
-        </div>
-      </div>
-
-      {/* Meds */}
-      <div className="card">
-        <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 14 }}>💊 Medicine Reminders Today</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(215px,1fr))", gap: 10 }}>
-          {meds.map((m, i) => (
-            <div key={i} style={{ background: m.done ? "rgba(16,185,129,0.07)" : "rgba(255,255,255,0.03)", border: `1px solid ${m.done ? "rgba(16,185,129,0.18)" : "rgba(255,255,255,0.07)"}`, borderRadius: 13, padding: "11px 13px", display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 11, background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>💊</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 700 }}>{m.name}</div>
-                <div style={{ fontSize: 10, color: "#475569" }}>{m.person} · {m.time}</div>
-              </div>
-              <div style={{ width: 22, height: 22, borderRadius: "50%", background: m.done ? "#10B981" : "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {m.done && <I n="check" s={11} c="white" />}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Family Challenges teaser */}
-      <div className="card" style={{ marginTop: 18, background: "linear-gradient(135deg,rgba(245,158,11,0.1),rgba(255,107,53,0.07))", border: "1px solid rgba(245,158,11,0.2)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ fontSize: 36 }}>🏆</div>
-            <div>
-              <h3 style={{ fontSize: 15, fontWeight: 800, color: "#F59E0B" }}>Family Challenges</h3>
-              <p style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>Complete challenges to boost your family happiness score!</p>
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontFamily: "'Fredoka One',cursive", fontSize: 24, color: "#F59E0B" }}>850 pts</div>
-            <div style={{ fontSize: 10, color: "#64748B" }}>Family Happiness Score</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-          {[
-            { t: "Drink 8 glasses today", e: "💧", done: false, pts: 50 },
-            { t: "All 5 prayers completed", e: "🤲", done: true, pts: 100 },
-            { t: "Help a family member", e: "💛", done: false, pts: 75 },
-            { t: "Send appreciation message", e: "💌", done: true, pts: 60 },
-          ].map((ch, i) => (
-            <div key={i} style={{ background: ch.done ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${ch.done ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.07)"}`, borderRadius: 12, padding: "9px 13px", display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 160 }}>
-              <span style={{ fontSize: 18 }}>{ch.e}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: ch.done ? "#10B981" : "#E2E8F0", textDecoration: ch.done ? "line-through" : "none" }}>{ch.t}</div>
-                <div style={{ fontSize: 10, color: "#F59E0B" }}>+{ch.pts} pts</div>
-              </div>
-              {ch.done && <I n="check" s={14} c="#10B981" />}
-            </div>
-          ))}
-        </div>
+      <div style={{position:"absolute",bottom:50,left:24,right:24}}>
+        <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:20}}>{SLIDES.map((_,i)=><div key={i} onClick={()=>setSlide(i)} style={{width:i===slide?24:8,height:8,borderRadius:4,background:i===slide?"white":"rgba(255,255,255,.35)",transition:"all .3s",cursor:"pointer"}}/>)}</div>
+        <button onClick={()=>isLast?onDone():setSlide(s=>s+1)} style={{width:"100%",padding:"15px 20px",borderRadius:14,border:"none",background:"white",color:"#1E3A5F",fontFamily:"inherit",fontWeight:800,fontSize:16,cursor:"pointer"}}>{isLast?"Let's Get Started! 🚀":"Next →"}</button>
       </div>
     </div>
   );
-};
+}
 
-// ── Health Guardian ──
-const Health = () => {
-  const [tab, setTab] = useState("overview");
-  const [water, setWater] = useState(5);
-  const [note, setNote] = useState("");
-  const [bs, setBs] = useState("");
-  const [bsLog, setBsLog] = useState([
-    { val: 110, time: "8:00 AM", status: "Normal" },
-    { val: 145, time: "12:00 PM", status: "High" },
-    { val: 98, time: "6:00 PM", status: "Normal" },
-  ]);
-  const meds = [
-    { name: "Metformin 500mg", person: "Grandma", times: ["8:00 AM", "8:00 PM"], taken: [true, false], color: "#10B981" },
-    { name: "Lisinopril 10mg", person: "Dad", times: ["9:00 AM"], taken: [true], color: "#3B82F6" },
-    { name: "Aspirin 75mg", person: "Dad", times: ["Bedtime"], taken: [false], color: "#F59E0B" },
-    { name: "Vitamin D 1000IU", person: "Everyone", times: ["12:00 PM"], taken: [false], color: "#A855F7" },
-  ];
-  const appts = [
-    { d: "Dr. Khan – Cardiologist", date: "Mar 15", who: "Dad", e: "❤️" },
-    { d: "Dr. Fatima – Endocrinologist", date: "Mar 22", who: "Grandma", e: "🩺" },
-    { d: "Dr. Ahmed – Pediatrician", date: "Apr 5", who: "Ahmed", e: "👶" },
-  ];
-  return (
-    <div style={{ padding: 22 }} className="fade-in">
-      <h1 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 26, color: "#10B981", marginBottom: 4 }}>💚 Health Guardian</h1>
-      <p style={{ color: "#475569", fontSize: 12, marginBottom: 20 }}>Keeping your family healthy, one day at a time.</p>
-      <div style={{ display: "flex", gap: 7, marginBottom: 22, flexWrap: "wrap" }}>
-        {["overview", "medicines", "tracker", "appointments"].map(t => <button key={t} className={`tab-btn ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
-      </div>
-      {tab === "overview" && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 14, marginBottom: 20 }}>
-            {[
-              { label: "Medicines Taken", value: "6/8", icon: "💊", color: "#10B981", pct: 75 },
-              { label: "Water Intake", value: `${water}/8 glasses`, icon: "💧", color: "#3B82F6", pct: (water / 8) * 100 },
-              { label: "Steps Today", value: "6,240", icon: "👟", color: "#F59E0B", pct: 62 },
-              { label: "Avg Blood Sugar", value: "117 mg/dL", icon: "🩸", color: "#EF4444", pct: 70 },
-            ].map(s => (
-              <div key={s.label} className="card">
-                <div style={{ fontSize: 26, marginBottom: 7 }}>{s.icon}</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: "#475569", marginBottom: 9 }}>{s.label}</div>
-                <div className="progress-bar"><div className="progress-fill" style={{ width: `${s.pct}%`, background: s.color }} /></div>
-              </div>
-            ))}
-          </div>
-          <div className="card">
-            <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 11 }}>📝 Daily Health Note</h3>
-            <textarea rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="How is everyone feeling today? Any symptoms to note?" style={{ resize: "none" }} />
-            <button className="btn btn-secondary" style={{ marginTop: 11 }}>Save Note</button>
-          </div>
-        </div>
-      )}
-      {tab === "medicines" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-          {meds.map((m, i) => (
-            <div key={i} className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 13, background: `${m.color}22`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>💊</div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 14 }}>{m.name}</div>
-                  <div style={{ fontSize: 11, color: "#475569" }}>For: {m.person}</div>
-                  <div style={{ fontSize: 11, color: m.color, marginTop: 2 }}>{m.times.join(" · ")}</div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 7 }}>
-                {m.times.map((t, j) => (
-                  <div key={j} style={{ padding: "5px 11px", borderRadius: 18, fontSize: 11, fontWeight: 700, background: m.taken[j] ? `${m.color}22` : "rgba(255,255,255,0.05)", color: m.taken[j] ? m.color : "#64748B", border: `1px solid ${m.taken[j] ? m.color + "44" : "rgba(255,255,255,0.08)"}` }}>
-                    {m.taken[j] ? "✓ " : ""}{t}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-          <button className="btn btn-primary" style={{ alignSelf: "flex-start" }}><I n="plus" s={15} c="white" /> Add Medicine</button>
-        </div>
-      )}
-      {tab === "tracker" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-          <div className="card">
-            <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>💧 Water Intake</h3>
-            <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 12 }}>
-              {Array.from({ length: 8 }, (_, i) => (
-                <div key={i} onClick={() => setWater(i + 1)} style={{ width: 44, height: 52, borderRadius: 11, cursor: "pointer", background: i < water ? "linear-gradient(180deg,#60A5FA,#3B82F6)" : "rgba(255,255,255,0.05)", border: `2px solid ${i < water ? "#3B82F6" : "rgba(255,255,255,0.08)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.3s", transform: i < water ? "scale(1.05)" : "scale(1)" }}>💧</div>
-              ))}
-            </div>
-            <p style={{ fontSize: 12, color: "#475569" }}>{water} of 8 glasses · {Math.round((water / 8) * 100)}% goal</p>
-          </div>
-          <div className="card">
-            <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>🩸 Blood Sugar Log</h3>
-            <div style={{ display: "flex", gap: 7, marginBottom: 12 }}>
-              <input value={bs} onChange={e => setBs(e.target.value)} placeholder="Enter mg/dL" type="number" />
-              <button className="btn btn-primary" onClick={() => {
-                if (!bs) return;
-                const v = parseInt(bs);
-                setBsLog(p => [{ val: v, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), status: v < 100 ? "Low" : v > 140 ? "High" : "Normal" }, ...p]);
-                setBs("");
-              }}>Add</button>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 7, maxHeight: 190, overflowY: "auto" }}>
-              {bsLog.map((l, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 11px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>{l.val} mg/dL</span>
-                  <span style={{ fontSize: 11, color: "#475569" }}>{l.time}</span>
-                  <span className="badge" style={{ background: l.status === "Normal" ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)", color: l.status === "Normal" ? "#10B981" : "#EF4444" }}>{l.status}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-      {tab === "appointments" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-          {appts.map((a, i) => (
-            <div key={i} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ fontSize: 34 }}>{a.e}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800 }}>{a.d}</div>
-                <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>For: {a.who}</div>
-              </div>
-              <div style={{ background: "rgba(255,107,53,0.1)", border: "1px solid rgba(255,107,53,0.2)", borderRadius: 11, padding: "7px 13px" }}>
-                <div style={{ fontSize: 12, color: "#FF6B35", fontWeight: 700 }}>{a.date}</div>
-              </div>
-            </div>
-          ))}
-          <button className="btn btn-primary" style={{ alignSelf: "flex-start" }}><I n="plus" s={15} c="white" /> Add Appointment</button>
-        </div>
-      )}
-    </div>
-  );
-};
 
-// ── Faith Companion ──
-const Faith = () => {
-  const [tab, setTab] = useState("prayer");
-  const [count, setCount] = useState(0);
-  const [tasbeeh, setTasbeeh] = useState("SubhanAllah");
-  const prayers = [
-    { name: "Fajr", time: "5:23 AM", arabic: "الفجر", status: "done" },
-    { name: "Dhuhr", time: "12:45 PM", arabic: "الظهر", status: "done" },
-    { name: "Asr", time: "4:12 PM", arabic: "العصر", status: "next" },
-    { name: "Maghrib", time: "6:48 PM", arabic: "المغرب", status: "pending" },
-    { name: "Isha", time: "8:15 PM", arabic: "العشاء", status: "pending" },
-  ];
-  const duas = [
-    { title: "Morning Dua", arabic: "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ", trans: "Asbahna wa asbahal mulku lillah", meaning: "We have entered the morning and the kingdom belongs to Allah" },
-    { title: "Before Eating", arabic: "بِسْمِ اللَّهِ وَعَلَى بَرَكَةِ اللَّهِ", trans: "Bismillahi wa 'ala barakatillah", meaning: "In the name of Allah and with His blessings" },
-    { title: "For Parents", arabic: "رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيراً", trans: "Rabbi irhamhuma kama rabbayani saghira", meaning: "My Lord, have mercy on them as they raised me when small" },
-  ];
-  return (
-    <div style={{ padding: 22 }} className="fade-in">
-      <h1 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 26, background: "linear-gradient(135deg,#A855F7,#6366F1)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 4 }}>🌙 Faith Companion</h1>
-      <p style={{ color: "#475569", fontSize: 12, marginBottom: 20 }}>Your spiritual guide for daily life.</p>
-      <div style={{ display: "flex", gap: 7, marginBottom: 22, flexWrap: "wrap" }}>
-        {["prayer", "qibla", "tasbeeh", "duas", "ramadan"].map(t => <button key={t} className={`tab-btn ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
-      </div>
-      {tab === "prayer" && (
-        <div>
-          <div style={{ background: "linear-gradient(135deg,rgba(168,85,247,0.13),rgba(99,102,241,0.08))", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 18, padding: "18px 22px", marginBottom: 18, textAlign: "center" }}>
-            <div style={{ fontSize: 12, color: "#475569", marginBottom: 3 }}>NEXT PRAYER</div>
-            <div style={{ fontFamily: "'Fredoka One',cursive", fontSize: 28, color: "#FF6B35" }}>Asr Prayer</div>
-            <div style={{ fontSize: 44, fontWeight: 800, marginTop: 3 }}>4:12 PM</div>
-            <div style={{ fontSize: 12, color: "#A855F7", marginTop: 3 }}>in 1 hour 23 minutes</div>
-            <div style={{ fontSize: 10, color: "#475569", marginTop: 5 }}>📍 Hyderabad, Telangana · Calculation: ISNA</div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-            {prayers.map(p => (
-              <div key={p.name} className={`prayer-card ${p.status}`}>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <div style={{ fontSize: 24, minWidth: 34 }}>{p.status === "done" ? "✅" : p.status === "next" ? "⏰" : "🔘"}</div>
-                  <div>
-                    <div style={{ fontWeight: 800 }}>{p.name}</div>
-                    <div style={{ fontSize: 16, color: "#A855F7", fontFamily: "serif" }}>{p.arabic}</div>
-                  </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: p.status === "next" ? "#FF6B35" : "#E2E8F0" }}>{p.time}</div>
-                  <span className="badge" style={{ marginTop: 3, background: p.status === "done" ? "rgba(16,185,129,0.2)" : p.status === "next" ? "rgba(255,107,53,0.2)" : "rgba(255,255,255,0.06)", color: p.status === "done" ? "#10B981" : p.status === "next" ? "#FF6B35" : "#64748B" }}>
-                    {p.status === "done" ? "Prayed ✓" : p.status === "next" ? "Next" : "Upcoming"}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {tab === "qibla" && (
-        <div className="card" style={{ textAlign: "center", padding: 36 }}>
-          <div style={{ fontSize: 44, marginBottom: 12 }}>🧭</div>
-          <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 7 }}>Qibla Direction</h3>
-          <p style={{ color: "#475569", marginBottom: 22, fontSize: 12 }}>Based on: Hyderabad, IN</p>
-          <div style={{ width: 180, height: 180, borderRadius: "50%", margin: "0 auto 18px", background: "rgba(168,85,247,0.09)", border: "2px solid rgba(168,85,247,0.28)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-            <div style={{ position: "absolute", top: "9%", left: "50%", transform: "translateX(-50%)", fontSize: 11, color: "#A855F7", fontWeight: 700 }}>N</div>
-            <div style={{ width: 3, height: 72, background: "linear-gradient(180deg,#FF6B35,transparent)", borderRadius: 2, transform: "rotate(-292deg)", transformOrigin: "bottom center" }} />
-            <div style={{ position: "absolute", width: 13, height: 13, borderRadius: "50%", background: "#FF6B35" }} />
-            <div style={{ position: "absolute", bottom: "9%", fontSize: 18 }}>🕋</div>
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#A855F7" }}>292° — Northwest</div>
-          <p style={{ fontSize: 12, color: "#475569", marginTop: 5 }}>Face Northwest toward the Kaaba</p>
-        </div>
-      )}
-      {tab === "tasbeeh" && (
-        <div className="card" style={{ textAlign: "center", padding: 36 }}>
-          <select value={tasbeeh} onChange={e => setTasbeeh(e.target.value)} style={{ maxWidth: 260, marginBottom: 22, textAlign: "center", fontWeight: 700 }}>
-            <option>SubhanAllah</option><option>Alhamdulillah</option><option>Allahu Akbar</option><option>La ilaha illallah</option><option>Astaghfirullah</option>
-          </select>
-          <div onClick={() => setCount(c => c + 1)} style={{ width: 190, height: 190, borderRadius: "50%", background: "radial-gradient(circle,rgba(168,85,247,0.28),rgba(99,102,241,0.08))", border: "3px solid rgba(168,85,247,0.38)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", margin: "0 auto 26px", cursor: "pointer", transition: "all 0.15s", userSelect: "none" }}
-            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
-            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
-            <div style={{ fontFamily: "'Fredoka One',cursive", fontSize: 60, color: "#A855F7", lineHeight: 1 }}>{count}</div>
-            <div style={{ fontSize: 11, color: "#64748B", marginTop: 3 }}>Tap to count</div>
-          </div>
-          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 3 }}>{tasbeeh}</div>
-          <div style={{ fontSize: 20, color: "#A855F7", fontFamily: "serif", marginBottom: 18 }}>
-            {tasbeeh === "SubhanAllah" ? "سُبْحَانَ اللَّهِ" : tasbeeh === "Alhamdulillah" ? "الْحَمْدُ لِلَّهِ" : tasbeeh === "Allahu Akbar" ? "اللَّهُ أَكْبَرُ" : "لَا إِلَهَ إِلَّا اللَّهُ"}
-          </div>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <button className="btn btn-ghost" onClick={() => setCount(0)}>Reset</button>
-            {count > 0 && count % 33 === 0 && <span className="badge" style={{ background: "rgba(16,185,129,0.2)", color: "#10B981", fontSize: 13 }}>✓ 33!</span>}
-          </div>
-        </div>
-      )}
-      {tab === "duas" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {duas.map((d, i) => (
-            <div key={i} className="card">
-              <h4 style={{ fontWeight: 800, color: "#A855F7", marginBottom: 9 }}>{d.title}</h4>
-              <p style={{ fontSize: 20, color: "#E2E8F0", textAlign: "right", direction: "rtl", marginBottom: 7, lineHeight: 1.8, fontFamily: "serif" }}>{d.arabic}</p>
-              <p style={{ fontSize: 12, color: "#94A3B8", fontStyle: "italic", marginBottom: 3 }}>{d.trans}</p>
-              <p style={{ fontSize: 11, color: "#475569" }}>{d.meaning}</p>
-            </div>
-          ))}
-        </div>
-      )}
-      {tab === "ramadan" && (
-        <div>
-          <div style={{ background: "linear-gradient(135deg,rgba(168,85,247,0.13),rgba(245,158,11,0.09))", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 18, padding: 22, textAlign: "center", marginBottom: 18 }}>
-            <div style={{ fontSize: 44, marginBottom: 7 }}>🌙</div>
-            <h2 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 26, color: "#F59E0B" }}>Ramadan Mubarak!</h2>
-            <p style={{ fontSize: 28, fontWeight: 800, color: "#A855F7", marginTop: 7 }}>Day 15 of 30</p>
-            <div className="progress-bar" style={{ marginTop: 14, height: 11 }}>
-              <div className="progress-fill" style={{ width: "50%", background: "linear-gradient(90deg,#A855F7,#F59E0B)" }} />
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            {[{ label: "Suhoor", time: "4:45 AM", icon: "🌅", color: "#F59E0B" }, { label: "Iftar", time: "6:48 PM", icon: "🌇", color: "#FF6B35" }].map(r => (
-              <div key={r.label} className="card" style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 36, marginBottom: 7 }}>{r.icon}</div>
-                <div style={{ fontWeight: 800, fontSize: 15 }}>{r.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: r.color, marginTop: 3 }}>{r.time}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+export default function FamilyVerse() {
+  const [session, setSession] = useState(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    const savedSession = LS.get("session", null);
+    if (savedSession) setSession(savedSession);
+    if (!LS.get("ob_done", false)) setShowOnboarding(true);
+    setMyMood(LS.get("myMood", "happy"));
+  }, []);
 
-// ── Kids World ──
-const Kids = () => {
-  const [tab, setTab] = useState("home");
-  const [lidx, setLidx] = useState(0);
-  const [mathQ, setMathQ] = useState({ a: 4, b: 3, op: "+" });
-  const [mRes, setMRes] = useState(null);
-  const [score, setScore] = useState(0);
-  const canvasRef = useRef(null);
-  const drawing = useRef(false);
-  const drawColor = useRef("#FF6B35");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [obMode, setObMode] = useState("create");
+  const [obStep, setObStep] = useState(1);
+  const [obData, setObData] = useState({ familyName:"", userName:"", role:"Father", city:"Hyderabad", password:"", joinCode:"" });
+  const [obLoading, setObLoading] = useState(false);
 
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-  const lWords = ["Apple", "Bee", "Cat", "Duck", "Elephant", "Frog", "Grape", "House", "Ice cream", "Jasmine", "Kite", "Lion", "Mango", "Nightingale", "Orange", "Penguin", "Queen", "Rose", "Snake", "Tiger", "Umbrella", "Violin", "Whale", "Xylophone", "Yarn", "Zebra"];
-  const lEmojis = ["🍎", "🐝", "🐱", "🦆", "🐘", "🐸", "🍇", "🏠", "🍦", "🌺", "🪁", "🦁", "🍈", "🐦", "🍊", "🐧", "👸", "🌹", "🐍", "🐯", "☂️", "🎻", "🐋", "🎮", "🪀", "🦓"];
+  const [page, setPage] = useState("dashboard");
+  const [openChat, setOpenChat] = useState(null);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showNotif, setShowNotif] = useState(false);
+  const [sosActive, setSosActive] = useState(false);
+  const [kidsTab, setKidsTab] = useState("alphabet");
+  const [mathQ, setMathQ] = useState(genMath);
+  const [mathRes, setMathRes] = useState(null);
+  const [quoteIdx] = useState(() => Math.floor(Math.random() * QUOTES.length));
 
-  const genMath = () => {
-    const ops = ["+", "-", "×"];
-    const op = ops[Math.floor(Math.random() * 3)];
-    let a, b;
-    if (op === "+") { a = Math.floor(Math.random() * 10) + 1; b = Math.floor(Math.random() * 10) + 1; }
-    else if (op === "-") { a = Math.floor(Math.random() * 10) + 5; b = Math.floor(Math.random() * 5) + 1; }
-    else { a = Math.floor(Math.random() * 5) + 1; b = Math.floor(Math.random() * 5) + 1; }
-    setMathQ({ a, b, op }); setMRes(null);
-  };
-  const correct = mathQ.op === "+" ? mathQ.a + mathQ.b : mathQ.op === "-" ? mathQ.a - mathQ.b : mathQ.a * mathQ.b;
+  const [showAddMed, setShowAddMed] = useState(false);
+  const [showAddMem, setShowAddMem] = useState(false);
+  const [showAddLog, setShowAddLog] = useState(false);
+  const [showAddApt, setShowAddApt] = useState(false);
 
-  const sd = e => { drawing.current = true; const ctx = canvasRef.current.getContext("2d"); const r = canvasRef.current.getBoundingClientRect(); ctx.beginPath(); ctx.moveTo(e.clientX - r.left, e.clientY - r.top); };
-  const dd = e => { if (!drawing.current) return; const ctx = canvasRef.current.getContext("2d"); const r = canvasRef.current.getBoundingClientRect(); ctx.lineTo(e.clientX - r.left, e.clientY - r.top); ctx.strokeStyle = drawColor.current; ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.stroke(); };
-  const stopD = () => { drawing.current = false; };
+  const [fmMed, setFmMed] = useState({ name:"", time:"", member:"" });
+  const [fmMem, setFmMem] = useState({ title:"", emoji:"⭐", lockedUntil:"" });
+  const [fmLog, setFmLog] = useState({ text:"", member:"", bloodSugar:"", bloodPressure:"" });
+  const [fmApt, setFmApt] = useState({ doctorName:"", specialty:"", date:"", member:"", notes:"" });
+  const [chatInput, setChatInput] = useState("");
+  const [aiQuery, setAiQuery] = useState("");
+  const [aiResponse, setAiResponse] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
-  const stories = [
-    { title: "The Generous Spider", e: "🕷️", preview: "Prophet Muhammad ﷺ was resting in a cave. A tiny spider spun its web at the entrance, protecting him from harm..." },
-    { title: "The Kind Elephant", e: "🐘", preview: "In a forest far away, an elephant named Noor always helped other animals in trouble, teaching everyone the joy of giving..." },
-    { title: "Ibrahim and the Stars", e: "⭐", preview: "A young boy named Ibrahim looked at the sky and wondered: 'Who made all these beautiful stars?'..." },
-  ];
+  const [members, setMembers] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [medicines, setMedicines] = useState([]);
+  const [memories, setMemories] = useState([]);
+  const [healthLogs, setHealthLogs] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [prayerTimes, setPrayerTimes] = useState([]);
+  const [qiblaDir, setQiblaDir] = useState(null);
+  const [compassHeading, setCompassHeading] = useState(0);
+  const [myMood, setMyMood] = useState("happy");
+  const [water, setWater] = useState(() => LS.get("water", 0));
+  const [tasbeeh, setTasbeeh] = useState(0);
+  const [ramadan, setRamadan] = useState(() => LS.get("ramadan", Array(30).fill("unfasted")));
+  const [settings, setSettings] = useState(() => LS.get("settings", { notifications:true, prayerAlerts:true }));
+  const [challenges, setChallenges] = useState(() => LS.get("challenges", [
+    {id:1,t:"Hydration Hero",d:"Drink 8 glasses of water",e:"💧",pts:10,done:false},
+    {id:2,t:"Prayer Champion",d:"Complete all 5 prayers",e:"🕌",pts:20,done:false},
+    {id:3,t:"Helper of the Day",d:"Help a family member",e:"🤝",pts:15,done:false},
+    {id:4,t:"Gratitude Moment",d:"Tell someone you love them",e:"💝",pts:10,done:false},
+    {id:5,t:"Learning Star",d:"20 mins reading/studying",e:"📚",pts:15,done:false},
+  ]));
+  const [typingUser, setTypingUser] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [activeCall, setActiveCall] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
 
-  return (
-    <div style={{ padding: 22 }} className="fade-in">
-      <h1 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 30, background: "linear-gradient(135deg,#FFE66D,#FF6B9D,#4ECDC4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 4 }}>🌈 Kids World</h1>
-      <p style={{ color: "#475569", fontSize: 12, marginBottom: 20 }}>A safe & fun place just for you! 🎉</p>
-      {tab === "home" && (
-        <div>
-          <div style={{ background: "linear-gradient(135deg,rgba(255,107,53,0.12),rgba(255,230,109,0.08))", border: "1px solid rgba(255,230,109,0.2)", borderRadius: 18, padding: 18, marginBottom: 22, display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ fontSize: 42 }} className="bounce-anim">⭐</div>
-            <div>
-              <h3 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 18, color: "#FFE66D" }}>My Stars: {score}</h3>
-              <p style={{ fontSize: 12, color: "#94A3B8" }}>Keep learning to earn more stars!</p>
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 14 }}>
-            {[
-              { id: "alphabet", icon: "🔤", label: "Alphabet Fun", color: "#FF6B9D", bg: "rgba(255,107,157,0.1)" },
-              { id: "math", icon: "🔢", label: "Math Games", color: "#4ECDC4", bg: "rgba(78,205,196,0.1)" },
-              { id: "drawing", icon: "🎨", label: "Drawing Board", color: "#FFE66D", bg: "rgba(255,230,109,0.1)" },
-              { id: "stories", icon: "📖", label: "Islamic Stories", color: "#A855F7", bg: "rgba(168,85,247,0.1)" },
-            ].map(item => (
-              <div key={item.id} className="kid-card" onClick={() => setTab(item.id)} style={{ background: item.bg, border: `2px solid ${item.color}40` }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-6px) scale(1.03)"; e.currentTarget.style.boxShadow = `0 18px 40px ${item.color}30`; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}>
-                <div style={{ fontSize: 50, marginBottom: 11 }} className="float">{item.icon}</div>
-                <div style={{ fontFamily: "'Fredoka One',cursive", fontSize: 18, color: item.color }}>{item.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {tab !== "home" && (
-        <div>
-          <button className="btn btn-ghost" style={{ marginBottom: 18 }} onClick={() => setTab("home")}>← Back</button>
-          {tab === "alphabet" && (
-            <div className="card" style={{ textAlign: "center", padding: 36 }}>
-              <div style={{ fontFamily: "'Fredoka One',cursive", fontSize: 110, lineHeight: 1, color: "#FF6B9D", marginBottom: 7 }}>{letters[lidx]}</div>
-              <div style={{ fontSize: 56, marginBottom: 11 }}>{lEmojis[lidx]}</div>
-              <div style={{ fontFamily: "'Fredoka One',cursive", fontSize: 22, marginBottom: 22 }}>{letters[lidx]} is for {lWords[lidx]}</div>
-              <div style={{ display: "flex", gap: 14, justifyContent: "center", marginBottom: 18 }}>
-                <button onClick={() => setLidx(i => Math.max(0, i - 1))} style={{ background: "linear-gradient(135deg,#FF6B9D,#FF8C61)", border: "none", borderRadius: 18, color: "white", fontFamily: "'Fredoka One',cursive", fontSize: 17, padding: "12px 22px", cursor: "pointer", transition: "all 0.3s" }}>← Prev</button>
-                <button onClick={() => setLidx(i => Math.min(25, i + 1))} style={{ background: "linear-gradient(135deg,#4ECDC4,#26D4C8)", border: "none", borderRadius: 18, color: "#1A1A2E", fontFamily: "'Fredoka One',cursive", fontSize: 17, padding: "12px 22px", cursor: "pointer", transition: "all 0.3s" }}>Next →</button>
-              </div>
-              <div style={{ display: "flex", gap: 4, justifyContent: "center", flexWrap: "wrap" }}>
-                {letters.map((l, i) => (
-                  <div key={l} onClick={() => setLidx(i)} style={{ width: 27, height: 27, borderRadius: 5, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: i === lidx ? "#FF6B9D" : "rgba(255,255,255,0.06)", color: i === lidx ? "white" : "#64748B" }}>{l}</div>
-                ))}
-              </div>
-            </div>
-          )}
-          {tab === "math" && (
-            <div className="card" style={{ textAlign: "center", padding: 36, maxWidth: 480, margin: "0 auto" }}>
-              <div style={{ fontFamily: "'Fredoka One',cursive", fontSize: 18, color: "#4ECDC4", marginBottom: 18 }}>⭐ Score: {score}</div>
-              <div style={{ fontFamily: "'Fredoka One',cursive", fontSize: 52, marginBottom: 22 }}>{mathQ.a} {mathQ.op} {mathQ.b} = ?</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 18 }}>
-                {[...new Set([correct, correct + Math.floor(Math.random() * 5) + 1, correct - Math.floor(Math.random() * 5) - 1])].slice(0, 3).sort(() => Math.random() - 0.5).map(opt => (
-                  <button key={opt} onClick={() => {
-                    if (opt === correct) { setMRes("correct"); setScore(s => s + 10); setTimeout(genMath, 1200); }
-                    else setMRes("wrong");
-                  }} style={{ background: "linear-gradient(135deg,#4ECDC4,#26D4C8)", border: "none", borderRadius: 18, color: "#1A1A2E", fontFamily: "'Fredoka One',cursive", fontSize: 22, padding: "13px", cursor: "pointer", transition: "all 0.3s" }}
-                    onMouseEnter={e => e.currentTarget.style.transform = "scale(1.08)"}
-                    onMouseLeave={e => e.currentTarget.style.transform = ""}>{opt}</button>
-                ))}
-              </div>
-              {mRes === "correct" && <div style={{ fontSize: 36, animation: "bounce 0.5s ease" }}>🎉 Correct! +10 ⭐</div>}
-              {mRes === "wrong" && <div style={{ fontSize: 28 }}>❌ Try again!</div>}
-              <button onClick={genMath} style={{ marginTop: 16, background: "linear-gradient(135deg,#FF6B9D,#FF8C61)", border: "none", borderRadius: 16, color: "white", fontFamily: "'Fredoka One',cursive", fontSize: 16, padding: "11px 22px", cursor: "pointer" }}>New Question 🔄</button>
-            </div>
-          )}
-          {tab === "drawing" && (
-            <div className="card" style={{ textAlign: "center" }}>
-              <h3 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 22, marginBottom: 14, color: "#FFE66D" }}>🎨 Drawing Board</h3>
-              <canvas ref={canvasRef} width={580} height={320} className="drawing-canvas"
-                style={{ background: "#0D1117", border: "2px solid rgba(255,230,109,0.28)", maxWidth: "100%" }}
-                onMouseDown={sd} onMouseMove={dd} onMouseUp={stopD} onMouseLeave={stopD} />
-              <div style={{ marginTop: 11, display: "flex", gap: 7, justifyContent: "center", flexWrap: "wrap" }}>
-                {["#FF6B9D", "#4ECDC4", "#FFE66D", "#A855F7", "#10B981", "#FF6B35", "#60A5FA", "#ffffff", "#000000"].map(col => (
-                  <div key={col} onClick={() => { drawColor.current = col; }} style={{ width: 30, height: 30, borderRadius: "50%", background: col, cursor: "pointer", border: "2px solid rgba(255,255,255,0.2)", transition: "transform 0.2s" }}
-                    onMouseEnter={e => e.currentTarget.style.transform = "scale(1.25)"}
-                    onMouseLeave={e => e.currentTarget.style.transform = ""} />
-                ))}
-                <button style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#E2E8F0", fontSize: 12, fontFamily: "'Nunito',sans-serif", fontWeight: 700, padding: "5px 13px", cursor: "pointer" }}
-                  onClick={() => { const ctx = canvasRef.current.getContext("2d"); ctx.clearRect(0, 0, 580, 320); }}>Clear 🗑️</button>
-              </div>
-            </div>
-          )}
-          {tab === "stories" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {stories.map((s, i) => (
-                <div key={i} className="card" style={{ cursor: "pointer" }}
-                  onMouseEnter={e => e.currentTarget.style.transform = "translateY(-3px)"}
-                  onMouseLeave={e => e.currentTarget.style.transform = ""}>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-                    <div style={{ fontSize: 44, minWidth: 55 }}>{s.e}</div>
-                    <div>
-                      <h4 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 18, color: "#FFE66D", marginBottom: 5 }}>{s.title}</h4>
-                      <p style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6 }}>{s.preview}</p>
-                      <button style={{ marginTop: 11, background: "linear-gradient(135deg,#A855F7,#6366F1)", border: "none", borderRadius: 14, color: "white", fontFamily: "'Fredoka One',cursive", fontSize: 14, padding: "9px 18px", cursor: "pointer" }}>Read Story 📖</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
+  const socketRef = useRef(null);
+  const msgsEndRef = useRef(null);
+  const typingTimeout = useRef(null);
+  const T = session?.token;
 
-// ── Family Chat ──
-const Chat = () => {
-  const [msgs, setMsgs] = useState([
-    { id: 1, sender: "Mama", text: "As-salamu Alaykum everyone! 🌟", time: "10:02 AM", mine: false, av: "👩" },
-    { id: 2, sender: "Dad", text: "Wa Alaykum Salaam! How is everyone doing?", time: "10:04 AM", mine: false, av: "👨" },
-    { id: 3, sender: "Me", text: "Alhamdulillah! Doing great 😊", time: "10:05 AM", mine: true, av: "🧑" },
-    { id: 4, sender: "Ahmed", text: "Baba can we go to the park after Asr? 🌳", time: "10:07 AM", mine: false, av: "👦" },
-    { id: 5, sender: "Dad", text: "Insha'Allah we will! 🌳", time: "10:08 AM", mine: false, av: "👨" },
-    { id: 6, sender: "Grandma", text: "Children, remember your prayers 🤲", time: "10:10 AM", mine: false, av: "👵" },
-  ]);
-  const [input, setInput] = useState("");
-  const [activeChat, setActiveChat] = useState("family");
-  const endRef = useRef(null);
+  // Load prayer times from Aladhan API
+  const loadPrayerTimes = useCallback(async (city) => {
+    try {
+      const resp = await fetch(`https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(city||"Hyderabad")}&country=IN&method=1`);
+      const data = await resp.json();
+      if (data.code === 200) {
+        const t = data.data.timings;
+        const now = new Date();
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+        const parsed = PRAYER_NAMES.map((n, i) => {
+          const [h, m] = t[n].split(":").map(Number);
+          const ampm = h >= 12 ? "PM" : "AM";
+          const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+          return { name:n, icon:PRAYER_ICONS[i], time:`${h12}:${String(m).padStart(2,"0")} ${ampm}`, passed: nowMins > h*60+m };
+        });
+        setPrayerTimes(parsed);
+      }
+    } catch {
+      const h = new Date().getHours();
+      setPrayerTimes([
+        {name:"Fajr",icon:"🌙",time:"05:12 AM",passed:h>=5},
+        {name:"Dhuhr",icon:"☀️",time:"12:30 PM",passed:h>=12},
+        {name:"Asr",icon:"🌤️",time:"03:45 PM",passed:h>=15},
+        {name:"Maghrib",icon:"🌅",time:"06:28 PM",passed:h>=18},
+        {name:"Isha",icon:"🌃",time:"07:55 PM",passed:h>=20},
+      ]);
+    }
+  }, []);
 
-  const members = [
-    { id: "family", name: "Family Group", av: "👨‍👩‍👧‍👦", online: true, last: "Grandma: Remember prayers 🤲", unread: 0 },
-    { id: "mama", name: "Mama", av: "👩", online: true, last: "Don't forget medicines!", unread: 1 },
-    { id: "dad", name: "Dad", av: "👨", online: false, last: "See you at dinner", unread: 0 },
-    { id: "grandma", name: "Grandma", av: "👵", online: true, last: "Remember your prayers", unread: 2 },
-  ];
+  // Real Qibla direction from GPS
+  const loadQibla = useCallback(() => {
+    if (!navigator.geolocation) { setQiblaDir(290); return; }
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const { latitude, longitude } = pos.coords;
+        const resp = await fetch(`https://api.aladhan.com/v1/qibla/${latitude}/${longitude}`);
+        const data = await resp.json();
+        if (data.code === 200) setQiblaDir(Math.round(data.data.direction));
+        else setQiblaDir(290);
+      } catch { setQiblaDir(290); }
+    }, () => setQiblaDir(290));
+  }, []);
 
-  const send = () => {
-    if (!input.trim()) return;
-    setMsgs(m => [...m, { id: Date.now(), sender: "Me", text: input, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), mine: true, av: "🧑" }]);
-    setInput("");
-    setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
+  // Compass
+  useEffect(() => {
+    const handler = (e) => { if (e.alpha !== null) setCompassHeading(e.alpha); };
+    window.addEventListener("deviceorientation", handler, true);
+    return () => window.removeEventListener("deviceorientation", handler, true);
+  }, []);
+
+  // Socket connection
+  const connectSocket = useCallback(async (token) => {
+    try {
+      const { io } = await import("socket.io-client");
+      const socket = io(API, { auth: { token }, transports: ["websocket","polling"], reconnection: true });
+      socket.on("connect", () => setSocketConnected(true));
+      socket.on("disconnect", () => setSocketConnected(false));
+      socket.on("newMessage", (msg) => setMessages(prev => prev.find(m=>m._id===msg._id) ? prev : [...prev, msg]));
+      socket.on("userTyping", ({ name, typing }) => setTypingUser(typing ? name : null));
+      socket.on("memberOnline", ({ name }) => setMembers(p => p.map(m => m.name===name ? {...m,online:true} : m)));
+      socket.on("memberOffline", ({ name }) => setMembers(p => p.map(m => m.name===name ? {...m,online:false} : m)));
+      socket.on("memberMoodUpdated", ({ name, mood }) => setMembers(p => p.map(m => m.name===name ? {...m,mood} : m)));
+      socket.on("sosReceived", ({ from }) => alert(`🚨 SOS! ${from} needs help! Check on them immediately!`));
+      socket.on("incomingCall", (data) => setIncomingCall(data));
+      socket.on("callEnded", () => { setActiveCall(null); setIncomingCall(null); });
+      socket.on("callRejected", () => { setActiveCall(null); alert("Call declined."); });
+      socketRef.current = socket;
+    } catch (e) { console.log("Socket error:", e.message); }
+  }, []);
+
+  // Load all data
+  const loadData = useCallback(async (token, city) => {
+    setLoading(true);
+    try {
+      const [fam, meds, mems, logs, apts] = await Promise.allSettled([
+        api("GET", "/family/members", null, token),
+        api("GET", "/health/medicines", null, token),
+        api("GET", "/memories", null, token),
+        api("GET", "/health/logs", null, token),
+        api("GET", "/health/appointments", null, token),
+      ]);
+      if (fam.status==="fulfilled") setMembers(fam.value.members||[]);
+      if (meds.status==="fulfilled") setMedicines(meds.value||[]);
+      if (mems.status==="fulfilled") setMemories(mems.value||[]);
+      if (logs.status==="fulfilled") setHealthLogs(logs.value||[]);
+      if (apts.status==="fulfilled") setAppointments(apts.value||[]);
+      await loadPrayerTimes(city);
+      loadQibla();
+    } catch(e) { console.error(e); }
+    finally { setLoading(false); }
+  }, [loadPrayerTimes, loadQibla]);
+
+  const loadMessages = async (chatId) => {
+    try { const msgs = await api("GET", `/messages/${chatId}`, null, T); setMessages(msgs||[]); } catch {}
   };
 
-  const emojis = ["😊", "😂", "🥰", "😍", "🙏", "💪", "❤️", "🌟", "🎉", "👍", "🌹", "🤲", "💛", "🌙"];
+  useEffect(() => {
+    if (session?.token) {
+      loadData(session.token, session.city);
+      connectSocket(session.token);
+      loadMessages("group");
+    }
+    return () => socketRef.current?.disconnect();
+  }, [session]);
 
-  return (
-    <div style={{ padding: 22, display: "flex", gap: 18, height: "calc(100vh - 60px)" }} className="fade-in">
-      {/* Sidebar */}
-      <div style={{ width: 270, flexShrink: 0 }}>
-        <h2 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 20, color: "#4ECDC4", marginBottom: 14 }}>💬 Family Chat</h2>
-        <input placeholder="Search conversations..." style={{ marginBottom: 10 }} />
-        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-          {members.map(m => (
-            <div key={m.id} onClick={() => setActiveChat(m.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 13, cursor: "pointer", transition: "all 0.3s", background: activeChat === m.id ? "rgba(78,205,196,0.09)" : "rgba(255,255,255,0.02)", border: `1px solid ${activeChat === m.id ? "rgba(78,205,196,0.28)" : "rgba(255,255,255,0.05)"}` }}>
-              <div style={{ position: "relative" }}>
-                <div style={{ fontSize: 26 }}>{m.av}</div>
-                <div style={{ position: "absolute", bottom: 0, right: 0, width: 9, height: 9, borderRadius: "50%", background: m.online ? "#10B981" : "#475569", border: "2px solid #0D0D1A" }} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, display: "flex", justifyContent: "space-between" }}>
-                  <span>{m.name}</span>
-                  {m.unread > 0 && <span style={{ background: "#FF6B35", color: "white", borderRadius: "50%", width: 17, height: 17, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800 }}>{m.unread}</span>}
-                </div>
-                <div style={{ fontSize: 10, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.last}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      {/* Chat */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "rgba(255,255,255,0.02)", borderRadius: 18, border: "1px solid rgba(255,255,255,0.05)", overflow: "hidden" }}>
-        <div style={{ padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: 11 }}>
-          <div style={{ fontSize: 26 }}>{members.find(m => m.id === activeChat)?.av}</div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 14 }}>{members.find(m => m.id === activeChat)?.name}</div>
-            <div style={{ fontSize: 10, color: "#10B981" }}>● Online · 5 members</div>
-          </div>
-        </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "18px", display: "flex", flexDirection: "column", gap: 10 }}>
-          {msgs.map(msg => (
-            <div key={msg.id} style={{ display: "flex", justifyContent: msg.mine ? "flex-end" : "flex-start", alignItems: "flex-end", gap: 7 }}>
-              {!msg.mine && <div style={{ fontSize: 22, marginBottom: 3 }}>{msg.av}</div>}
-              <div style={{ maxWidth: "72%" }}>
-                {!msg.mine && <div style={{ fontSize: 10, color: "#475569", marginBottom: 2, marginLeft: 2 }}>{msg.sender}</div>}
-                <div className={`chat-bubble ${msg.mine ? "sent" : "received"}`}>{msg.text}</div>
-                <div style={{ fontSize: 9, color: "#475569", marginTop: 2, textAlign: msg.mine ? "right" : "left" }}>{msg.time} {msg.mine && "✓✓"}</div>
-              </div>
-              {msg.mine && <div style={{ fontSize: 22, marginBottom: 3 }}>{msg.av}</div>}
-            </div>
-          ))}
-          <div ref={endRef} />
-        </div>
-        <div style={{ padding: "7px 14px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {emojis.map(e => <span key={e} style={{ fontSize: 17, cursor: "pointer", transition: "transform 0.2s", userSelect: "none" }} onClick={() => setInput(i => i + e)} onMouseEnter={el => el.currentTarget.style.transform = "scale(1.4)"} onMouseLeave={el => el.currentTarget.style.transform = ""}>{e}</span>)}
-        </div>
-        <div style={{ padding: "11px 14px", display: "flex", gap: 9, alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-          <button className="btn btn-ghost" style={{ padding: "9px 11px" }}><I n="camera" s={15} /></button>
-          <button className="btn btn-ghost" style={{ padding: "9px 11px" }}><I n="mic" s={15} /></button>
-          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Type a message..." style={{ flex: 1 }} />
-          <button className="btn btn-primary" onClick={send} style={{ padding: "9px 13px" }}><I n="send" s={15} c="white" /></button>
-        </div>
-      </div>
-    </div>
-  );
-};
+  useEffect(() => { LS.set("water", water); }, [water]);
+  useEffect(() => { LS.set("challenges", challenges); }, [challenges]);
+  useEffect(() => { LS.set("ramadan", ramadan); }, [ramadan]);
+  useEffect(() => { LS.set("settings", settings); }, [settings]);
+  useEffect(() => { msgsEndRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages, openChat]);
 
-// ── Memories ──
-const Memories = () => {
-  const [tab, setTab] = useState("all");
-  const [modal, setModal] = useState(false);
-  const memories = [
-    { id: 1, title: "Eid al-Fitr 2025", e: "🌙", date: "Mar 30, 2025", type: "photo", color: "#A855F7", note: "A blessed day with the whole family!" },
-    { id: 2, title: "Ahmed's First A+", e: "⭐", date: "Jan 15, 2026", type: "note", color: "#FFE66D", note: "So proud of our little scholar!" },
-    { id: 3, title: "Grandma's 70th Birthday", e: "🎂", date: "Feb 1, 2026", type: "photo", color: "#EC4899", note: "May Allah grant her health and happiness." },
-    { id: 4, title: "Family Picnic", e: "🌳", date: "Dec 20, 2025", type: "photo", color: "#10B981", note: "The park was beautiful this winter." },
-    { id: 5, title: "Sara Learns Quran", e: "📖", date: "Nov 5, 2025", type: "note", color: "#4ECDC4", note: "A milestone we will never forget." },
-    { id: 6, title: "Time Capsule 2030", e: "⏳", date: "Opens: 2030", type: "capsule", color: "#F59E0B", locked: true, note: "A letter to our future selves..." },
-  ];
-  const filtered = memories.filter(m => tab === "all" || (tab === "photos" && m.type === "photo") || (tab === "notes" && m.type === "note") || (tab === "capsules" && m.type === "capsule"));
-  return (
-    <div style={{ padding: 22 }} className="fade-in">
-      <div style={{ marginBottom: 22, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 26, background: "linear-gradient(135deg,#EC4899,#A855F7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>📸 Memory Capsule</h1>
-          <p style={{ color: "#475569", fontSize: 12, marginTop: 3 }}>Your family's precious moments, preserved forever.</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => setModal(true)}><I n="plus" s={14} c="white" /> Add Memory</button>
-      </div>
-      <div style={{ display: "flex", gap: 7, marginBottom: 20, flexWrap: "wrap" }}>
-        {["all", "photos", "notes", "capsules"].map(t => <button key={t} className={`tab-btn ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(255px,1fr))", gap: 16 }}>
-        {filtered.map(m => (
-          <div key={m.id} className="memory-card card" style={{ background: `linear-gradient(135deg,${m.color}12,${m.color}06)`, border: `1px solid ${m.color}30` }}>
-            {m.locked && (
-              <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(10px)", borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 7, zIndex: 2 }}>
-                <I n="lock" s={30} c="#F59E0B" />
-                <div style={{ fontFamily: "'Fredoka One',cursive", fontSize: 15, color: "#F59E0B" }}>Opens in 2030</div>
-                <div style={{ fontSize: 11, color: "#94A3B8" }}>~4 years remaining</div>
-              </div>
+  // ONBOARDING
+  const createFamily = async () => {
+    if (!obData.familyName.trim()||!obData.userName.trim()||!obData.password.trim()) return alert("Please fill all fields including password!");
+    setObLoading(true);
+    try {
+      const data = await api("POST", "/family/create", { familyName:obData.familyName, userName:obData.userName, role:obData.role, password:obData.password, city:obData.city });
+      const sess = { token:data.token, member:data.member, family:data.family, city:data.family.city };
+      LS.set("session", sess); setSession(sess);
+    } catch(e) { alert("Error: " + e.message); }
+    finally { setObLoading(false); }
+  };
+
+  const joinFamily = async () => {
+    if (!obData.joinCode.trim()||!obData.userName.trim()||!obData.password.trim()) return alert("Enter invite code, your name and a password!");
+    setObLoading(true);
+    try {
+      const data = await api("POST", "/family/join", { inviteCode:obData.joinCode.trim().toUpperCase(), userName:obData.userName, role:obData.role, password:obData.password });
+      const sess = { token:data.token, member:data.member, family:data.family, city:data.family.city };
+      LS.set("session", sess); setSession(sess);
+    } catch(e) { alert("❌ " + e.message); }
+    finally { setObLoading(false); }
+  };
+
+  if (!session) {
+    return (
+      <>
+        <style>{CSS}</style>
+        <div className="ob">
+          <div style={{fontSize:52,marginBottom:10}}>🏠</div>
+          <div style={{fontFamily:"Fredoka One,cursive",fontSize:28,color:"white",marginBottom:3}}>FamilyVerse</div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,.55)",marginBottom:24,textAlign:"center"}}>Your private family universe ✨</div>
+          <div className="ob-card">
+            {obMode==="create" && obStep===1 && (
+              <>
+                <div className="ob-h">Create Your Family 👨‍👩‍👧‍👦</div>
+                <label className="ob-lbl">Family Name *</label>
+                <input className="ob-inp" placeholder="e.g. Al-Rashid Family" value={obData.familyName} onChange={e=>setObData({...obData,familyName:e.target.value})} />
+                <label className="ob-lbl">Your Name *</label>
+                <input className="ob-inp" placeholder="e.g. Ahmad" value={obData.userName} onChange={e=>setObData({...obData,userName:e.target.value})} />
+                <label className="ob-lbl">City (for prayer times)</label>
+                <input className="ob-inp" placeholder="e.g. Hyderabad" value={obData.city} onChange={e=>setObData({...obData,city:e.target.value})} />
+                <label className="ob-lbl">Password *</label>
+                <input className="ob-inp" type="password" placeholder="Create a password" value={obData.password} onChange={e=>setObData({...obData,password:e.target.value})} />
+                <button className="ob-btn" onClick={()=>{ if(!obData.familyName.trim()||!obData.userName.trim()||!obData.password.trim()) return alert("Fill all fields!"); setObStep(2); }}>Next → Choose Role</button>
+                <div className="ob-or">— or —</div>
+                <button className="ob-join" onClick={()=>setObMode("join")}>Join Existing Family 🔑</button>
+              </>
             )}
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
-              <div style={{ fontSize: 38, minWidth: 46, textAlign: "center" }}>{m.e}</div>
-              <div style={{ flex: 1 }}>
-                <h4 style={{ fontWeight: 800, fontSize: 14, marginBottom: 4 }}>{m.title}</h4>
-                <p style={{ fontSize: 11, color: "#94A3B8", lineHeight: 1.55, marginBottom: 8 }}>{m.note}</p>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span className="badge" style={{ background: `${m.color}22`, color: m.color }}>{m.type}</span>
-                  <span style={{ fontSize: 10, color: "#475569" }}>{m.date}</span>
+            {obMode==="create" && obStep===2 && (
+              <>
+                <div className="ob-h">Your Role in the Family</div>
+                <div className="role-grid">
+                  {ROLES.map(r=><button key={r} className={`rb${obData.role===r?" sel":""}`} onClick={()=>setObData({...obData,role:r})}><span className="rb-e">{ROLE_EMOJI[r]||"👤"}</span>{r}</button>)}
                 </div>
+                <button className="ob-btn" onClick={createFamily} disabled={obLoading}>{obLoading?"Creating...":"Create Family Universe 🚀"}</button>
+                <button onClick={()=>setObStep(1)} style={{width:"100%",marginTop:8,background:"none",border:"none",color:"var(--muted)",fontFamily:"Nunito",fontSize:12,cursor:"pointer",padding:"6px"}}>← Back</button>
+              </>
+            )}
+            {obMode==="join" && (
+              <>
+                <div className="ob-h">Join Your Family 🔑</div>
+                <label className="ob-lbl">Family Invite Code *</label>
+                <input className="ob-inp" placeholder="e.g. FAM-XY2AB" value={obData.joinCode} onChange={e=>setObData({...obData,joinCode:e.target.value})} style={{textTransform:"uppercase",letterSpacing:2,fontFamily:"monospace",fontSize:16}} />
+                <label className="ob-lbl">Your Name *</label>
+                <input className="ob-inp" placeholder="e.g. Fatima" value={obData.userName} onChange={e=>setObData({...obData,userName:e.target.value})} />
+                <label className="ob-lbl">Password *</label>
+                <input className="ob-inp" type="password" placeholder="Set your password" value={obData.password} onChange={e=>setObData({...obData,password:e.target.value})} />
+                <label className="ob-lbl">Your Role</label>
+                <div className="role-grid">
+                  {ROLES.slice(0,6).map(r=><button key={r} className={`rb${obData.role===r?" sel":""}`} onClick={()=>setObData({...obData,role:r})}><span className="rb-e">{ROLE_EMOJI[r]||"👤"}</span>{r}</button>)}
+                </div>
+                <button className="ob-btn" onClick={joinFamily} disabled={obLoading}>{obLoading?"Joining...":"Join Family ✅"}</button>
+                <button onClick={()=>setObMode("create")} style={{width:"100%",marginTop:8,background:"none",border:"none",color:"var(--muted)",fontFamily:"Nunito",fontSize:12,cursor:"pointer",padding:"6px"}}>← Create New Family Instead</button>
+              </>
+            )}
+          </div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,.3)",marginTop:14}}>Crafted with ❤️ by Syed Muzamil</div>
+        </div>
+      </>
+    );
+  }
+
+  const me = session.member;
+  const family = session.family;
+  const now = new Date();
+  const h = now.getHours();
+  const greeting = h<5?"Good Night 🌃":h<12?"Good Morning 🌅":h<17?"Good Afternoon ☀️":h<20?"Good Evening 🌙":"Good Night 🌃";
+  const dateStr = now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+  const nextPrayer = prayerTimes.find(p=>!p.passed);
+  const doneCount = challenges.filter(c=>c.done).length;
+  const happiness = challenges.length ? Math.round((doneCount/challenges.length)*100) : 0;
+  const unreadMsgs = messages.filter(m=>m.sender!==me.name&&!m.read).length;
+  const quote = QUOTES[quoteIdx];
+
+  const sendMessage = () => {
+    if (!chatInput.trim()) return;
+    const chatId = openChat?.id==="group" ? "group" : [me.name, openChat?.name].sort().join("-");
+    if (socketRef.current?.connected) {
+      socketRef.current.emit("sendMessage", { chatId, text:chatInput.trim(), senderEmoji:me.emoji, type:"text" });
+    } else {
+      api("POST","/messages",{ chatId, text:chatInput.trim(), senderEmoji:me.emoji },T).then(msg=>setMessages(p=>[...p,msg])).catch(()=>{});
+    }
+    setChatInput(""); setShowEmoji(false);
+    clearTimeout(typingTimeout.current);
+    socketRef.current?.emit("typing",{ chatId, typing:false });
+  };
+
+  const handleTyping = (val) => {
+    setChatInput(val);
+    socketRef.current?.emit("typing",{ chatId:"group", typing:true });
+    clearTimeout(typingTimeout.current);
+    typingTimeout.current = setTimeout(()=>socketRef.current?.emit("typing",{chatId:"group",typing:false}), 2000);
+  };
+
+  const startCall = (member, type) => {
+    setActiveCall({ to:member.name, toEmoji:member.emoji, type, status:"calling" });
+    socketRef.current?.emit("callOffer",{ to:member.name, fromEmoji:me.emoji, type });
+  };
+
+  const endCall = () => {
+    if (activeCall) socketRef.current?.emit("endCall",{ to:activeCall.to });
+    if (incomingCall) socketRef.current?.emit("callReject",{ to:incomingCall.from });
+    setActiveCall(null); setIncomingCall(null);
+  };
+
+  const askAI = async () => {
+    if (!aiQuery.trim()) return;
+    setAiLoading(true);
+    try {
+      const data = await api("POST","/health/ai-advice",{ note:aiQuery, member:me.name },T);
+      setAiResponse(data.advice);
+    } catch { setAiResponse("AI assistant unavailable. Make sure ANTHROPIC_API_KEY is set in Railway."); }
+    finally { setAiLoading(false); }
+  };
+
+  const EMOJIS = ["❤️","😊","🥰","😂","🙏","🌙","✨","🎉","💪","👍","🤲","🌹","💝","🍕","🏠","⭐"];
+
+  const NAV = [
+    {id:"dashboard",icon:"🏠",l:"Home"},
+    {id:"health",icon:"🏥",l:"Health"},
+    {id:"faith",icon:"🕌",l:"Faith"},
+    {id:"kids",icon:"🌈",l:"Kids"},
+    {id:"chat",icon:"💬",l:"Chat",badge:unreadMsgs},
+    {id:"memories",icon:"📸",l:"Memories"},
+    {id:"emergency",icon:"🆘",l:"SOS"},
+    {id:"settings",icon:"⚙️",l:"More"},
+  ];
+
+  const PAGE_TITLES = { dashboard:family.familyName, health:"Health 🏥", faith:"Faith 🕌", kids:"Kids 🌈", chat:"Family Chat 💬", memories:"Memories 📸", emergency:"Emergency 🆘", settings:"Settings ⚙️" };
+
+  if (incomingCall) return (
+    <>
+      <style>{CSS}</style>
+      <div className="call-overlay">
+        <div className="call-av">{incomingCall.fromEmoji||"👤"}</div>
+        <div className="call-name">{incomingCall.from}</div>
+        <div className="call-status">Incoming {incomingCall.type} call...</div>
+        <div className="call-btns">
+          <button className="call-btn call-end" onClick={endCall}>📵</button>
+          <button className="call-btn call-accept" onClick={()=>{setActiveCall(incomingCall);setIncomingCall(null);}}>📞</button>
+        </div>
+      </div>
+    </>
+  );
+
+  if (activeCall) return (
+    <>
+      <style>{CSS}</style>
+      <div className="call-overlay">
+        <div className="call-av">{activeCall.toEmoji||"👤"}</div>
+        <div className="call-name">{activeCall.to||activeCall.from}</div>
+        <div className="call-status">{activeCall.status==="calling"?"Calling...":"Connected ●"}</div>
+        <div style={{fontSize:12,opacity:.5,marginBottom:30}}>{activeCall.type==="video"?"📹 Video Call":"📞 Voice Call"}</div>
+        <div className="call-btns">
+          <button className="call-btn call-mute">🔇</button>
+          <button className="call-btn call-end" onClick={endCall}>📵</button>
+          {activeCall.type==="video"&&<button className="call-btn call-mute">📷</button>}
+        </div>
+      </div>
+    </>
+  );
+
+  if (page==="chat" && openChat) {
+    const chatId = openChat.id==="group" ? "group" : [me.name, openChat.name].sort().join("-");
+    const chatMsgs = messages.filter(m=>m.chatId===chatId||(openChat.id==="group"&&!m.chatId));
+    return (
+      <>
+        <style>{CSS}</style>
+        <div id="fv">
+          <div className="chat-win">
+            <div className="cw-hd">
+              <button className="cw-back" onClick={()=>{setOpenChat(null);loadMessages("group");}}>←</button>
+              <div style={{fontSize:26}}>{openChat.avatar||openChat.emoji||"👥"}</div>
+              <div>
+                <div style={{fontWeight:800,fontSize:14}}>{openChat.name}</div>
+                <div style={{fontSize:10,opacity:.6}}>{openChat.id==="group"?`${members.length} members`:openChat.online?"● Online":"○ Offline"} {socketConnected?"🟢":""}</div>
+              </div>
+              <div className="cw-acts">
+                {openChat.id!=="group" && <>
+                  <button className="cw-act" onClick={()=>startCall(openChat,"audio")}>📞</button>
+                  <button className="cw-act" onClick={()=>startCall(openChat,"video")}>📹</button>
+                </>}
               </div>
             </div>
+            <div className="chat-msgs">
+              {chatMsgs.length===0&&<div className="txt-c" style={{padding:"30px 0"}}><div style={{fontSize:32,marginBottom:8}}>{openChat.avatar||"💬"}</div><div className="txt-m">Start a conversation!</div></div>}
+              {chatMsgs.map((msg,i)=>{
+                const isSelf = msg.sender===me.name;
+                return (
+                  <div key={msg._id||i} className={`mw ${isSelf?"sent":"received"}`}>
+                    {!isSelf&&<div className="ms">{msg.senderEmoji} {msg.sender}</div>}
+                    <div className="mb-text">{msg.text}</div>
+                    <div className="mt-msg">{msg.timestamp?new Date(msg.timestamp).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}):"Now"}{isSelf&&" ✓✓"}</div>
+                  </div>
+                );
+              })}
+              {typingUser&&typingUser!==me.name&&<div className="typing-ind">{typingUser} is typing...</div>}
+              <div ref={msgsEndRef}/>
+            </div>
+            {showEmoji&&<div className="em-row">{EMOJIS.map(e=><span key={e} style={{fontSize:22,cursor:"pointer"}} onClick={()=>setChatInput(p=>p+e)}>{e}</span>)}</div>}
+            <div className="chat-inp-wrap">
+              <button style={{background:"none",border:"none",fontSize:20,cursor:"pointer",lineHeight:1}} onClick={()=>setShowEmoji(e=>!e)}>😊</button>
+              <textarea className="chat-inp" value={chatInput} onChange={e=>handleTyping(e.target.value)} placeholder="Type a message..." rows={1} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}}} />
+              <button className="send-btn" onClick={sendMessage}>➤</button>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const Dashboard = () => (
+    <div className="page fade">
+      <div className="banner">
+        <div className="bn-g">{greeting}</div>
+        <div className="bn-n">{family.familyName} 🌟</div>
+        <div className="bn-d">{dateStr}</div>
+        <div className="bn-stats">
+          <div className="bs"><div className="bs-n">{members.length}</div><div className="bs-l">Members</div></div>
+          <div className="bs"><div className="bs-n">{doneCount}</div><div className="bs-l">Done</div></div>
+          <div className="bs"><div className="bs-n">{happiness}%</div><div className="bs-l">Happy</div></div>
+          <div className="bs"><div className="bs-n">{water}</div><div className="bs-l">Water</div></div>
+        </div>
+      </div>
+      <div className="quote"><div className="quote-t">"{quote.t}"</div><div className="quote-a">— {quote.a}</div></div>
+      <div className="qgrid">
+        {[{l:"Health",s:`${medicines.filter(m=>!m.taken).length} reminders`,e:"🏥",bg:"linear-gradient(135deg,#EF4444,#DC2626)",pg:"health"},{l:"Prayer",s:nextPrayer?`Next: ${nextPrayer.name}`:"All done ✓",e:"🕌",bg:"linear-gradient(135deg,#0D9488,#0F766E)",pg:"faith"},{l:"Kids World",s:"Learn & Play",e:"🌈",bg:"linear-gradient(135deg,#F59E0B,#D97706)",pg:"kids"},{l:"Chat",s:unreadMsgs>0?`${unreadMsgs} new`:"Say salaam!",e:"💬",bg:"linear-gradient(135deg,#7C3AED,#5B21B6)",pg:"chat"}].map(a=>(
+          <button key={a.l} className="qcard" style={{background:a.bg}} onClick={()=>setPage(a.pg)}><div className="qc-i">{a.e}</div><div className="qc-l">{a.l}</div><div className="qc-s">{a.s}</div></button>
+        ))}
+      </div>
+      <div className="card">
+        <div className="card-hd"><div className="card-t">👨‍👩‍👧‍👦 Our Family</div></div>
+        <div className="mem-scroll">
+          {members.map(m=>(
+            <div key={m.id||m._id} className="mc">
+              <div className="mc-av">{m.emoji}{m.online&&<div className="mc-on"/>}</div>
+              <div className="mc-n">{m.name}{m.name===me.name?" (me)":""}</div>
+              <div style={{fontSize:11}}>{MOODS.find(md=>md.id===(m.mood||"happy"))?.e||"😊"}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-hd"><div className="card-t">💝 Your Mood</div></div>
+        <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:4}}>
+          {MOODS.map(m=>(
+            <div key={m.id} onClick={()=>{setMyMood(m.id);socketRef.current?.emit("moodUpdate",{mood:m.id});api("POST","/family/mood",{mood:m.id},T).catch(()=>{});}} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"8px 11px",borderRadius:10,cursor:"pointer",flexShrink:0,background:myMood===m.id?m.c+"22":"var(--soft)",border:`2px solid ${myMood===m.id?m.c:"transparent"}`}}>
+              <span style={{fontSize:22}}>{m.e}</span>
+              <span style={{fontSize:10,fontWeight:700,color:myMood===m.id?m.c:"var(--muted)"}}>{m.l}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {prayerTimes.length>0&&(
+        <div className="card">
+          <div className="card-hd"><div className="card-t">🕌 Prayer Times · {session.city}</div><button className="card-lnk" onClick={()=>setPage("faith")}>All</button></div>
+          {prayerTimes.map(p=>(
+            <div key={p.name} className={`pr-row ${p.passed?"passed":nextPrayer?.name===p.name?"next":"upcoming"}`}>
+              <span style={{fontSize:15}}>{p.icon}</span>
+              <span style={{fontSize:12,fontWeight:700,flex:1,color:nextPrayer?.name===p.name?"white":p.passed?"#94A3B8":""}}>{p.name}</span>
+              <span style={{fontSize:11,fontWeight:600,color:nextPrayer?.name===p.name?"#FCD34D":p.passed?"#94A3B8":""}}>{p.time}</span>
+              {nextPrayer?.name===p.name&&<span style={{fontSize:9,background:"#F59E0B",color:"white",padding:"2px 5px",borderRadius:5,fontWeight:800}}>NEXT</span>}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="score-box">
+        <div style={{fontSize:10,textTransform:"uppercase",opacity:.8}}>Family Happiness</div>
+        <div className="score-v">{happiness}%</div>
+        <div style={{fontSize:18,marginTop:3}}>{"⭐".repeat(Math.max(1,Math.ceil(happiness/20)))}</div>
+      </div>
+      {challenges.slice(0,3).map(c=>(
+        <div key={c.id} className={`chal${c.done?" done":""}`} onClick={()=>setChallenges(p=>p.map(x=>x.id===c.id?{...x,done:!x.done}:x))}>
+          <div style={{fontSize:26,flexShrink:0}}>{c.done?"✅":c.e}</div>
+          <div style={{flex:1}}><div style={{fontSize:12,fontWeight:800,color:"var(--navy)"}}>{c.t}</div><div style={{fontSize:10,color:"var(--muted)",marginTop:1}}>{c.d}</div></div>
+          <div style={{fontSize:12,fontWeight:800,color:"var(--amber)",flexShrink:0}}>+{c.pts}</div>
+        </div>
+      ))}
+      <div className="footer">Crafted with ❤️ for families · <em style={{color:"#CBD5E0"}}>Syed Muzamil</em></div>
+    </div>
+  );
+
+  const Health = () => (
+    <div className="page fade">
+      <div className="ai-card">
+        <div className="ai-title">🤖 AI Health Assistant</div>
+        <div style={{fontSize:12,opacity:.8}}>Ask about health conditions, symptoms, or get advice.</div>
+        <div className="ai-row">
+          <input className="ai-inp" placeholder="e.g. blood sugar 145, what to do?" value={aiQuery} onChange={e=>setAiQuery(e.target.value)} onKeyDown={e=>e.key==="Enter"&&askAI()} />
+          <button className="ai-btn" onClick={askAI} disabled={aiLoading}>{aiLoading?"...":"Ask 🤖"}</button>
+        </div>
+        {aiResponse&&<div className="ai-resp">🤖 {aiResponse}</div>}
+      </div>
+      <div className="hgrid">
+        {[{l:"Blood Pressure",v:healthLogs.find(l=>l.bloodPressure)?.bloodPressure||"Add log",u:"mmHg",ic:"🫀",bg:"linear-gradient(135deg,#EF4444,#DC2626)",pct:65},{l:"Blood Sugar",v:healthLogs.find(l=>l.bloodSugar)?.bloodSugar||"Add log",u:"mg/dL",ic:"🩸",bg:"linear-gradient(135deg,#F59E0B,#D97706)",pct:55},{l:"Water Today",v:`${water}/8`,u:"Glasses",ic:"💧",bg:"linear-gradient(135deg,#0EA5E9,#0284C7)",pct:water*12.5},{l:"Medicines",v:`${medicines.filter(m=>m.taken).length}/${medicines.length}`,u:"Taken",ic:"💊",bg:"linear-gradient(135deg,#16A34A,#15803D)",pct:medicines.length?(medicines.filter(m=>m.taken).length/medicines.length)*100:0}].map(hc=>(
+          <div key={hc.l} className="hcard" style={{background:hc.bg}}>
+            <div className="hc-l">{hc.l}</div><div className="hc-v">{hc.v}</div><div className="hc-u">{hc.u}</div>
+            <div className="hc-ic">{hc.ic}</div>
+            <div className="hbar"><div className="hbar-f" style={{width:`${Math.min(100,hc.pct||0)}%`}}/></div>
           </div>
         ))}
       </div>
-      {modal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#1A1A2E", borderRadius: 22, padding: 28, width: 460, border: "1px solid rgba(255,255,255,0.09)", animation: "fadeInUp 0.3s ease" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-              <h3 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 20, color: "#EC4899" }}>✨ Create Memory</h3>
-              <button className="btn btn-ghost" style={{ padding: "5px 9px" }} onClick={() => setModal(false)}><I n="close" s={15} /></button>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-              <input placeholder="Memory title..." />
-              <textarea rows={3} placeholder="Write about this memory..." style={{ resize: "none" }} />
-              <div style={{ display: "flex", gap: 9 }}>
-                <label className="btn btn-ghost" style={{ flex: 1, justifyContent: "center", cursor: "pointer" }}><I n="camera" s={15} /> Upload Photo</label>
-                <label className="btn btn-ghost" style={{ flex: 1, justifyContent: "center", cursor: "pointer" }}><I n="mic" s={15} /> Voice Note</label>
+      <div className="card">
+        <div className="card-hd"><div className="card-t">💧 Water Tracker</div><span style={{fontSize:11,color:"#0EA5E9",fontWeight:700}}>{water}/8</span></div>
+        <div className="wgrid">{Array.from({length:8}).map((_,i)=><div key={i} className={`wc${i<water?" full":""}`} onClick={()=>setWater(i<water?i:i+1)}>{i<water?"💧":"🫙"}</div>)}</div>
+        <div className="txt-c txt-m">{water>=8?"🎉 Goal achieved!!":`${8-water} more glasses to go`}</div>
+      </div>
+      <div className="card">
+        <div className="card-hd"><div className="card-t">💊 Medicines</div><button className="card-lnk" onClick={()=>setShowAddMed(true)}>+ Add</button></div>
+        {medicines.length===0?<div className="txt-c" style={{padding:"14px 0"}}><div className="txt-m">No medicines added</div><button className="btn btn-a btn-sm mt8" onClick={()=>setShowAddMed(true)}>+ Add</button></div>:medicines.map(m=>(
+          <div key={m._id} className="med-row">
+            <div className="med-ic" style={{background:(m.color||"#F59E0B")+"22"}}>💊</div>
+            <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:"var(--navy)"}}>{m.name}</div><div style={{fontSize:10,color:"var(--muted)",marginTop:1}}>{m.member} · {m.time}</div></div>
+            <button className={`med-btn ${m.taken?"taken":"pending"}`} onClick={()=>!m.taken&&api("PATCH",`/health/medicines/${m._id}/taken`,{},T).then(()=>setMedicines(p=>p.map(x=>x._id===m._id?{...x,taken:true}:x))).catch(()=>{})}>{m.taken?"✓ Taken":"Mark Taken"}</button>
+          </div>
+        ))}
+      </div>
+      <div className="card">
+        <div className="card-hd"><div className="card-t">📋 Health Log</div><button className="card-lnk" onClick={()=>setShowAddLog(true)}>+ Add</button></div>
+        {healthLogs.length===0?<div className="txt-c" style={{padding:"10px 0"}}><div className="txt-m">No health logs</div><button className="btn btn-a btn-sm mt8" onClick={()=>setShowAddLog(true)}>+ Add</button></div>:healthLogs.slice(0,5).map(l=>(
+          <div key={l._id} style={{padding:"8px 0",borderBottom:"1px solid rgba(0,0,0,.04)"}}>
+            <div style={{fontSize:12,fontWeight:700,color:"var(--navy)"}}>{l.text}</div>
+            {(l.bloodSugar||l.bloodPressure)&&<div style={{fontSize:10,color:"var(--teal)",marginTop:2}}>{l.bloodSugar&&`Sugar: ${l.bloodSugar}`}{l.bloodPressure&&` BP: ${l.bloodPressure}`}</div>}
+            <div style={{fontSize:10,color:"var(--muted)",marginTop:1}}>{l.member} · {new Date(l.date).toLocaleDateString()}</div>
+            {l.aiAnalysis&&<div style={{marginTop:5,background:"#EDE9FE",borderRadius:8,padding:"6px 9px",fontSize:11,color:"#5B21B6",lineHeight:1.6}}>🤖 {l.aiAnalysis}</div>}
+          </div>
+        ))}
+      </div>
+      <div className="card">
+        <div className="card-hd"><div className="card-t">🏥 Appointments</div><button className="card-lnk" onClick={()=>setShowAddApt(true)}>+ Add</button></div>
+        {appointments.length===0?<div className="txt-c" style={{padding:"10px 0"}}><div className="txt-m">No appointments</div><button className="btn btn-a btn-sm mt8" onClick={()=>setShowAddApt(true)}>+ Add</button></div>:appointments.map(a=>(
+          <div key={a._id} style={{display:"flex",gap:10,padding:"9px 0",borderBottom:"1px solid rgba(0,0,0,.04)"}}>
+            <div style={{fontSize:22}}>🏥</div>
+            <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:"var(--navy)"}}>{a.doctorName} {a.specialty&&`· ${a.specialty}`}</div><div style={{fontSize:10,color:"var(--muted)",marginTop:1}}>{a.member} · {a.date}</div>{a.notes&&<div style={{fontSize:10,color:"var(--mid)",marginTop:2}}>{a.notes}</div>}</div>
+          </div>
+        ))}
+      </div>
+      {showAddMed&&<div className="mo-overlay" onClick={e=>e.target===e.currentTarget&&setShowAddMed(false)}><div className="modal"><div className="modal-t">💊 Add Medicine</div><label className="ob-lbl">Medicine Name *</label><input className="inp" placeholder="e.g. Vitamin D" value={fmMed.name} onChange={e=>setFmMed({...fmMed,name:e.target.value})} /><label className="ob-lbl">Time</label><input className="inp" placeholder="e.g. 08:00 AM" value={fmMed.time} onChange={e=>setFmMed({...fmMed,time:e.target.value})} /><label className="ob-lbl">For which member?</label><input className="inp" placeholder={me.name} value={fmMed.member} onChange={e=>setFmMed({...fmMed,member:e.target.value})} /><button className="ob-btn" style={{fontSize:14}} onClick={()=>{ if(!fmMed.name.trim()) return alert("Enter medicine name!"); api("POST","/health/medicines",{...fmMed,member:fmMed.member||me.name},T).then(m=>{setMedicines(p=>[...p,m]);setFmMed({name:"",time:"",member:""});setShowAddMed(false);}).catch(e=>alert(e.message)); }}>Save ✅</button></div></div>}
+      {showAddLog&&<div className="mo-overlay" onClick={e=>e.target===e.currentTarget&&setShowAddLog(false)}><div className="modal"><div className="modal-t">📋 Add Health Log</div><label className="ob-lbl">Note *</label><input className="inp" placeholder="e.g. Feeling dizzy after lunch" value={fmLog.text} onChange={e=>setFmLog({...fmLog,text:e.target.value})} /><label className="ob-lbl">Blood Sugar (mg/dL)</label><input className="inp" type="number" placeholder="e.g. 120" value={fmLog.bloodSugar} onChange={e=>setFmLog({...fmLog,bloodSugar:e.target.value})} /><label className="ob-lbl">Blood Pressure</label><input className="inp" placeholder="e.g. 120/80" value={fmLog.bloodPressure} onChange={e=>setFmLog({...fmLog,bloodPressure:e.target.value})} /><button className="ob-btn" style={{fontSize:14}} onClick={()=>{ if(!fmLog.text.trim()) return alert("Enter a note!"); api("POST","/health/logs",{...fmLog,member:me.name},T).then(l=>{setHealthLogs(p=>[l,...p]);setFmLog({text:"",member:"",bloodSugar:"",bloodPressure:""});setShowAddLog(false);}).catch(e=>alert(e.message)); }}>Save & Get AI Analysis 🤖</button></div></div>}
+      {showAddApt&&<div className="mo-overlay" onClick={e=>e.target===e.currentTarget&&setShowAddApt(false)}><div className="modal"><div className="modal-t">🏥 Add Appointment</div><label className="ob-lbl">Doctor Name *</label><input className="inp" placeholder="e.g. Dr. Ahmed Khan" value={fmApt.doctorName} onChange={e=>setFmApt({...fmApt,doctorName:e.target.value})} /><label className="ob-lbl">Specialty</label><input className="inp" placeholder="e.g. Cardiologist" value={fmApt.specialty} onChange={e=>setFmApt({...fmApt,specialty:e.target.value})} /><label className="ob-lbl">Date *</label><input className="inp" type="date" value={fmApt.date} onChange={e=>setFmApt({...fmApt,date:e.target.value})} /><label className="ob-lbl">Family Member</label><input className="inp" placeholder={me.name} value={fmApt.member} onChange={e=>setFmApt({...fmApt,member:e.target.value})} /><label className="ob-lbl">Notes</label><input className="inp" placeholder="Any notes..." value={fmApt.notes} onChange={e=>setFmApt({...fmApt,notes:e.target.value})} /><button className="ob-btn" style={{fontSize:14}} onClick={()=>{ if(!fmApt.doctorName.trim()||!fmApt.date) return alert("Fill required fields!"); api("POST","/health/appointments",{...fmApt,member:fmApt.member||me.name},T).then(a=>{setAppointments(p=>[...p,a]);setFmApt({doctorName:"",specialty:"",date:"",member:"",notes:""});setShowAddApt(false);}).catch(e=>alert(e.message)); }}>Save ✅</button></div></div>}
+    </div>
+  );
+
+  const Faith = () => {
+    const [tb, setTb] = useState(tasbeeh);
+    const qiblaAngle = qiblaDir !== null ? qiblaDir - compassHeading : null;
+    return (
+      <div className="page fade">
+        <div className="card">
+          <div className="card-hd"><div className="card-t">🕌 Prayer Times · {session.city}</div></div>
+          <div className="pgrid5">
+            {prayerTimes.map(p=>(
+              <div key={p.name} className={`pc ${p.passed?"passed":nextPrayer?.name===p.name?"next":"upcoming"}`}>
+                <div className="pc-icon">{p.icon}</div>
+                <div className="pc-name">{p.name}</div>
+                <div className="pc-time">{p.time}</div>
               </div>
-              <div style={{ background: "rgba(245,158,11,0.09)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 11, padding: 13 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#F59E0B", marginBottom: 7 }}>⏳ Time Capsule (Optional)</div>
-                <input type="number" placeholder="Unlock year (e.g. 2030)" />
-              </div>
-              <button className="btn btn-primary" style={{ justifyContent: "center" }}>Save Memory 💾</button>
+            ))}
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+          <div className="card" style={{marginBottom:0}}>
+            <div className="card-t" style={{marginBottom:10}}>📿 Tasbeeh</div>
+            <div style={{textAlign:"center",padding:"8px 0"}}>
+              <button className="tasbeeh-btn" onClick={()=>{const n=tb+1;setTb(n);setTasbeeh(n);}}>
+                <div className="tn">{tb}</div><div className="tl">tap</div>
+              </button>
+              <button className="treset" onClick={()=>{setTb(0);setTasbeeh(0);}}>Reset</button>
+              {tb>0&&tb%33===0&&<div style={{fontSize:11,color:"var(--teal)",fontWeight:700,marginTop:6}}>✨ {tb}!</div>}
             </div>
           </div>
+          <div className="card" style={{marginBottom:0}}>
+            <div className="card-t" style={{marginBottom:10}}>🧭 Qibla Compass</div>
+            <div style={{textAlign:"center",padding:"8px 0"}}>
+              <div className="qibla-wrap">
+                <div className="qibla-outer">
+                  <div className="qibla-ring"/>
+                  <div className="qibla-dirs">
+                    <div className="qd n">N</div><div className="qd s">S</div>
+                    <div className="qd e">E</div><div className="qd w">W</div>
+                  </div>
+                  <div className="qibla-arrow" style={{transform:`rotate(${qiblaAngle||0}deg)`}}>🕋</div>
+                </div>
+              </div>
+              <div className="txt-m" style={{marginTop:6}}>{qiblaDir!==null?`${qiblaDir}° · Towards Makkah`:"Getting location..."}</div>
+              {qiblaDir===null&&<button className="btn btn-a btn-sm mt8" onClick={loadQibla}>📍 Enable GPS</button>}
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-hd"><div className="card-t">🌙 Ramadan Tracker</div><span style={{fontSize:11,color:"var(--teal)",fontWeight:700}}>{ramadan.filter(d=>d==="fasted").length}/30</span></div>
+          <div className="ram-grid">
+            {ramadan.map((d,i)=><div key={i} className={`rd ${d==="fasted"?"fasted":"unfasted"}`} onClick={()=>setRamadan(p=>{const n=[...p];n[i]=n[i]==="fasted"?"unfasted":"fasted";return n;})}>{i+1}</div>)}
+          </div>
+        </div>
+        <div className="sec-t">🤲 Daily Duas ({DUAS.length})</div>
+        {DUAS.map((d,i)=>(
+          <div key={i} className="dua-card">
+            <div className="dua-t">{d.t}</div>
+            <div className="arabic">{d.ar}</div>
+            <div className="translit">{d.tr}</div>
+            <div className="meaning">{d.en}</div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const Kids = () => (
+    <div className="page fade">
+      <div className="kids-banner"><div style={{fontSize:24,marginBottom:4}}>🦁 🐘 🌈 ⭐ 🎨</div><div style={{fontFamily:"Fredoka One,cursive",fontSize:22}}>Kids World 🌟</div></div>
+      <div className="ktabs">
+        {[{id:"alphabet",l:"🔤 ABCs"},{id:"math",l:"🔢 Math"},{id:"drawing",l:"🎨 Draw"},{id:"stories",l:"📖 Stories"}].map(t=>(
+          <button key={t.id} className={`ktab${kidsTab===t.id?" active":""}`} onClick={()=>setKidsTab(t.id)}>{t.l}</button>
+        ))}
+      </div>
+      {kidsTab==="alphabet"&&(
+        <div className="card fade">
+          <div className="card-hd"><div className="card-t">🔤 Tap a Letter!</div></div>
+          <div className="alpha-grid">
+            {Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZ").map((l,i)=>{
+              const c=["#EF4444","#F59E0B","#16A34A","#0EA5E9","#7C3AED","#EC4899"][i%6];
+              const words={A:"🍎 Apple",B:"🐝 Bee",C:"🐱 Cat",D:"🐶 Dog",E:"🐘 Elephant",F:"🐟 Fish",G:"🍇 Grape",H:"🏠 Home",I:"🍦 Ice Cream",J:"🃏 Jump",K:"🪁 Kite",L:"🦁 Lion",M:"🌙 Moon",N:"🌃 Night",O:"🍊 Orange",P:"🍕 Pizza",Q:"👸 Queen",R:"🌈 Rainbow",S:"⭐ Star",T:"🌳 Tree",U:"☂️ Umbrella",V:"🎻 Violin",W:"🌊 Water",X:"🎸 Xylophone",Y:"🟡 Yellow",Z:"🦓 Zebra"};
+              return <div key={l} className="ab" style={{color:c,border:`2px solid ${c}44`}} onClick={()=>alert(`${l} is for ${words[l]||l+"!"}`)}>{l}</div>;
+            })}
+          </div>
+        </div>
+      )}
+      {kidsTab==="math"&&(
+        <div className="math-box fade">
+          <div style={{fontSize:13,fontWeight:700,color:"var(--navy)",marginBottom:8}}>🧮 Quick Math!</div>
+          <div className="math-q">{mathQ.q}</div>
+          <div className="math-opts">
+            {mathQ.opts.map(opt=>(
+              <button key={opt} className={`mo${mathRes&&opt===mathQ.answer?" correct":mathRes&&opt!==mathQ.answer?" wrong":""}`} onClick={()=>{setMathRes(opt===mathQ.answer?"correct":"wrong");if(opt===mathQ.answer)setTimeout(()=>{setMathQ(genMath());setMathRes(null);},1200);}}>
+                {opt}
+              </button>
+            ))}
+          </div>
+          {mathRes&&<div style={{marginTop:12,fontSize:20}}>{mathRes==="correct"?"🎉 Correct!":"❌ Try again!"}</div>}
+          <button onClick={()=>{setMathQ(genMath());setMathRes(null);}} style={{marginTop:12,background:"white",border:"none",borderRadius:20,padding:"6px 18px",fontFamily:"Nunito",fontWeight:700,fontSize:12,cursor:"pointer",color:"var(--navy)"}}>🔄 New Question</button>
+        </div>
+      )}
+      {kidsTab==="drawing"&&<DrawingBoard/>}
+      {kidsTab==="stories"&&(
+        <div className="fade">
+          {STORIES.map((s,i)=>(
+            <div key={i} className="story-card" onClick={()=>alert(`📖 "${s.t}"\n\n${s.d}\n\nFull story coming soon! 🌟`)}>
+              <div style={{fontSize:28,marginBottom:6}}>{s.e}</div>
+              <span style={{fontSize:9,background:"#FEF3C7",color:"#92400E",padding:"2px 7px",borderRadius:7,display:"inline-block",marginBottom:4,fontWeight:700}}>Ages {s.age}</span>
+              <div style={{fontSize:13,fontWeight:800,color:"var(--navy)"}}>{s.t}</div>
+              <div style={{fontSize:11,color:"var(--muted)",lineHeight:1.5,marginTop:3}}>{s.d}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>
   );
-};
 
-// ── Emergency ──
-const Emergency = () => {
-  const [activated, setActivated] = useState(false);
-  const [timer, setTimer] = useState(3);
-  const [sent, setSent] = useState(false);
-  const activate = () => {
-    setActivated(true); let t = 3; setTimer(3);
-    const iv = setInterval(() => { t--; setTimer(t); if (t === 0) { clearInterval(iv); setSent(true); } }, 1000);
+  const ChatList = () => {
+    const contacts = [
+      {id:"group",name:`${family.familyName}`,avatar:"👨‍👩‍👧‍👦",preview:messages[messages.length-1]?.text?.substring(0,35)||"Say salaam!",online:true},
+      ...members.filter(m=>m.name!==me.name).map(m=>({id:m._id||m.id,name:m.name,avatar:m.emoji,preview:"Tap to chat...",online:m.online})),
+    ];
+    return (
+      <div className="page fade">
+        <div style={{background:"#FEF3C7",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:11,color:"#92400E"}}>
+          🔑 Share your invite code to add family: <strong style={{letterSpacing:1}}>{family.inviteCode}</strong>
+        </div>
+        <div className="sec-t">CONVERSATIONS</div>
+        {contacts.map(c=>(
+          <div key={c.id} className="cr" onClick={()=>{setOpenChat(c);loadMessages(c.id==="group"?"group":[me.name,c.name].sort().join("-"));}}>
+            <div className="cr-av">
+              {c.avatar}
+              {c.online&&<div style={{position:"absolute",bottom:1,right:1,width:10,height:10,borderRadius:"50%",background:"#22C55E",border:"2px solid white"}}/>}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div className="cr-n">{c.name}</div>
+              <div className="cr-p">{c.preview}</div>
+            </div>
+            {c.id==="group"&&unreadMsgs>0&&<div className="ubadge">{unreadMsgs}</div>}
+            <span style={{fontSize:10,color:"var(--muted)",flexShrink:0}}>{now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</span>
+          </div>
+        ))}
+      </div>
+    );
   };
-  const cancel = () => { setActivated(false); setSent(false); setTimer(3); };
-  const contacts = [
-    { name: "Mama", av: "👩", phone: "+91 98765 43210", online: true },
-    { name: "Dad", av: "👨", phone: "+91 98765 43211", online: false },
-    { name: "Uncle Hamid", av: "👴", phone: "+91 98765 43212", online: true },
-  ];
-  return (
-    <div style={{ padding: 22 }} className="fade-in">
-      <h1 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 26, color: "#EF4444", marginBottom: 4 }}>🆘 Emergency SOS</h1>
-      <p style={{ color: "#475569", fontSize: 12, marginBottom: 20 }}>One tap to alert your family instantly.</p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-        <div className="card" style={{ textAlign: "center", padding: 36 }}>
-          {!sent ? (
-            <>
-              <p style={{ fontSize: 12, color: "#475569", marginBottom: 22 }}>{activated ? `Sending alert in ${timer}...` : "Press for emergency alert"}</p>
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}>
-                <button className={`sos-btn ${activated ? "active" : ""}`} onClick={!activated ? activate : cancel}>
-                  <div style={{ fontSize: 36 }}>🆘</div>
-                  <div style={{ fontFamily: "'Fredoka One',cursive", fontSize: 20, marginTop: 4 }}>SOS</div>
-                  {activated && <div style={{ fontSize: 10, marginTop: 2, opacity: 0.8 }}>Tap to Cancel</div>}
-                </button>
-              </div>
-              <p style={{ fontSize: 11, color: "#475569" }}>Shares location & alerts all family members</p>
-            </>
-          ) : (
-            <div className="fade-in">
-              <div style={{ fontSize: 56, marginBottom: 14 }}>✅</div>
-              <h3 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 22, color: "#10B981", marginBottom: 7 }}>Alert Sent!</h3>
-              <p style={{ fontSize: 12, color: "#475569", marginBottom: 14 }}>Your family has been notified with your location.</p>
-              <button className="btn btn-ghost" onClick={cancel}>Dismiss</button>
-            </div>
-          )}
-        </div>
-        <div className="card">
-          <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>📞 Emergency Contacts</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-            {contacts.map(c => (
-              <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 13px", background: "rgba(255,255,255,0.03)", borderRadius: 13, border: "1px solid rgba(255,255,255,0.06)" }}>
-                <div style={{ position: "relative" }}>
-                  <div style={{ fontSize: 26 }}>{c.av}</div>
-                  <div style={{ position: "absolute", bottom: 0, right: 0, width: 8, height: 8, borderRadius: "50%", background: c.online ? "#10B981" : "#475569", border: "2px solid #1A1A2E" }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13 }}>{c.name}</div>
-                  <div style={{ fontSize: 10, color: "#475569" }}>{c.phone}</div>
-                </div>
-                <button className="btn btn-danger" style={{ padding: "7px 11px", fontSize: 11 }}>Call</button>
-              </div>
-            ))}
-          </div>
-          <button className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 11, fontSize: 13 }}><I n="plus" s={14} /> Add Contact</button>
-        </div>
-      </div>
-      <div className="card" style={{ marginTop: 18 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 11 }}>🛡️ Safety Reminders</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 9 }}>
-          {[["📍", "Location sharing enabled"], ["📱", "All members notified"], ["🚑", "Nearest hospital: 2.4km"], ["👮", "Emergency: 100 / 112"]].map(([icon, text], i) => (
-            <div key={i} style={{ padding: "9px 13px", background: "rgba(255,255,255,0.03)", borderRadius: 11, display: "flex", alignItems: "center", gap: 9 }}>
-              <span style={{ fontSize: 18 }}>{icon}</span>
-              <span style={{ fontSize: 11, color: "#94A3B8" }}>{text}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
 
-// ── Settings ──
-const Settings = () => {
-  const [name, setName] = useState("Ahmed Family");
-  const [notif, setNotif] = useState(true);
-  const [prayer, setPrayer] = useState(true);
-  const [med, setMed] = useState(true);
-  const Toggle = ({ value, onChange }) => (
-    <div onClick={() => onChange(!value)} style={{ width: 46, height: 24, borderRadius: 12, cursor: "pointer", background: value ? "#10B981" : "rgba(255,255,255,0.1)", position: "relative", transition: "background 0.3s", flexShrink: 0 }}>
-      <div style={{ width: 18, height: 18, borderRadius: "50%", background: "white", position: "absolute", top: 3, left: value ? 25 : 3, transition: "left 0.3s", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }} />
+  const Memories = () => (
+    <div className="page fade">
+      <div className="row mb10">
+        <div className="flex1"><div style={{fontFamily:"Fredoka One,cursive",fontSize:18,color:"var(--navy)"}}>📸 Memory Capsule</div><div className="txt-m">{memories.length} memories</div></div>
+        <button className="btn btn-a" onClick={()=>setShowAddMem(true)}>+ New</button>
+      </div>
+      {memories.length===0?<div className="card txt-c" style={{padding:24}}><div style={{fontSize:36,marginBottom:8}}>📸</div><div style={{fontWeight:700,color:"var(--navy)",marginBottom:4}}>No memories yet!</div><button className="btn btn-a mt8" onClick={()=>setShowAddMem(true)}>+ Create First Memory</button></div>:(
+        <div className="mem-grid">
+          {memories.map(m=>{
+            const bg={capsule:"#EDE9FE",note:"#FEF3C7",photo:"#E0F2FE"}[m.type]||"#F1F5F9";
+            const tc={capsule:"#7C3AED",note:"#F59E0B",photo:"#0EA5E9"}[m.type]||"var(--muted)";
+            return (
+              <div key={m._id} className="mem-card" onClick={()=>m.locked?alert(`🔒 Opens ${m.lockedUntil}!`):alert(`📖 "${m.title}"\nBy ${m.addedBy||"Family"} · ${new Date(m.date).toLocaleDateString()}`)}>
+                <div className="mem-th" style={{background:bg}}>{m.emoji}{m.locked&&<div className="mem-lock"><span style={{fontSize:20}}>🔒</span><div style={{fontSize:10,fontWeight:700}}>Opens {m.lockedUntil}</div></div>}</div>
+                <div className="mem-bd"><div className="mem-type" style={{color:tc}}>{m.type.toUpperCase()}</div><div className="mem-ttl">{m.title}</div><div className="mem-dt">{new Date(m.date).toLocaleDateString()}</div></div>
+                <div className="mem-ft"><span style={{color:"#F43F5E",fontWeight:700}} onClick={e=>{e.stopPropagation();api("PATCH",`/memories/${m._id}/heart`,{},T).then(updated=>setMemories(p=>p.map(x=>x._id===m._id?updated:x))).catch(()=>{})}}>❤️ {m.hearts}</span><span className="txt-m">{m.locked?"Locked":"Tap to view"}</span></div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {showAddMem&&<div className="mo-overlay" onClick={e=>e.target===e.currentTarget&&setShowAddMem(false)}><div className="modal"><div className="modal-t">✨ New Memory</div><label className="ob-lbl">Title *</label><input className="inp" placeholder="e.g. Eid 2026" value={fmMem.title} onChange={e=>setFmMem({...fmMem,title:e.target.value})} /><label className="ob-lbl">Emoji</label><div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>{["⭐","🎉","🌙","❤️","🏠","📸","🎁","🌹","🍰","✈️","🕌","🤲"].map(e=><button key={e} onClick={()=>setFmMem({...fmMem,emoji:e})} style={{fontSize:20,background:fmMem.emoji===e?"#FEF3C7":"white",border:`2px solid ${fmMem.emoji===e?"#F59E0B":"rgba(0,0,0,.08)"}`,borderRadius:8,padding:"3px 7px",cursor:"pointer"}}>{e}</button>)}</div><label className="ob-lbl">Lock until year (optional)</label><input className="inp" placeholder="e.g. 2030" value={fmMem.lockedUntil} onChange={e=>setFmMem({...fmMem,lockedUntil:e.target.value})} /><button className="ob-btn" style={{fontSize:14}} onClick={()=>{ if(!fmMem.title.trim()) return alert("Enter a title!"); api("POST","/memories",{...fmMem,locked:!!fmMem.lockedUntil},T).then(m=>{setMemories(p=>[m,...p]);setFmMem({title:"",emoji:"⭐",lockedUntil:""});setShowAddMem(false);}).catch(e=>alert(e.message)); }}>Save Memory 💾</button></div></div>}
     </div>
   );
-  return (
-    <div style={{ padding: 22, maxWidth: 680 }} className="fade-in">
-      <h1 style={{ fontFamily: "'Fredoka One',cursive", fontSize: 26, color: "#94A3B8", marginBottom: 22 }}>⚙️ Settings</h1>
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <div className="card">
-          <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14, color: "#FF6B35" }}>👨‍👩‍👧‍👦 Family Profile</h3>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
-            <div style={{ width: 60, height: 60, borderRadius: 16, background: "linear-gradient(135deg,rgba(255,107,53,0.28),rgba(255,230,109,0.18))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>👨‍👩‍👧‍👦</div>
-            <div style={{ flex: 1 }}><input value={name} onChange={e => setName(e.target.value)} style={{ fontWeight: 700, fontSize: 15 }} /></div>
+
+  const Emergency = () => (
+    <div className="page fade">
+      {sosActive&&<div className="sos-alert"><div style={{fontSize:18,fontWeight:800,color:"#DC2626",marginBottom:5}}>🚨 SOS ALERT SENT!</div><div style={{fontSize:12,color:"#EF4444"}}>Alert sent to all {members.length} family members.</div><button onClick={()=>setSosActive(false)} style={{marginTop:8,background:"white",border:"1px solid #EF4444",color:"#EF4444",padding:"6px 16px",borderRadius:8,fontFamily:"Nunito",fontWeight:800,cursor:"pointer",fontSize:11}}>Cancel</button></div>}
+      <div className="txt-c" style={{padding:"20px 0 10px"}}>
+        <button className="sos-btn" onClick={()=>{setSosActive(true);navigator.geolocation?.getCurrentPosition(pos=>socketRef.current?.emit("sosAlert",{location:{lat:pos.coords.latitude,lng:pos.coords.longitude}}),()=>socketRef.current?.emit("sosAlert",{}));}}>
+          <div style={{fontSize:36,lineHeight:1}}>🆘</div>
+          <div style={{fontSize:11,opacity:.85,marginTop:3}}>PRESS FOR SOS</div>
+        </button>
+        <div className="txt-m" style={{maxWidth:240,margin:"0 auto"}}>Instantly alerts all family members with your GPS location.</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {[{e:"📍",t:"Share Location",d:"GPS to family"},{e:"📞",t:"Call Family",d:"Emergency"},{e:"🏥",t:"Hospitals",d:"Find nearest"},{e:"👮",t:"Authorities",d:"Call 112"}].map(a=>(
+          <div key={a.t} className="card txt-c" style={{cursor:"pointer",marginBottom:0}} onClick={()=>alert(`${a.e} ${a.t}\n${a.d}`)}>
+            <div style={{fontSize:26,marginBottom:5}}>{a.e}</div>
+            <div style={{fontWeight:800,fontSize:12,color:"var(--navy)"}}>{a.t}</div>
+            <div className="txt-m">{a.d}</div>
           </div>
-          <div style={{ padding: "11px 13px", background: "rgba(255,107,53,0.07)", border: "1px solid rgba(255,107,53,0.18)", borderRadius: 11, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 11, color: "#475569" }}>Family Invite Code</div>
-              <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: 3, color: "#FF6B35", fontFamily: "monospace" }}>FAM-X7K2P</div>
-            </div>
-            <button className="btn btn-ghost" style={{ fontSize: 11 }}>Copy 📋</button>
-          </div>
-        </div>
-        <div className="card">
-          <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14, color: "#4ECDC4" }}>🔔 Notifications</h3>
-          {[["All Notifications", "Enable or disable all alerts", notif, setNotif], ["Prayer Time Alerts", "Get reminded for each prayer", prayer, setPrayer], ["Medicine Reminders", "Daily medication notifications", med, setMed]].map(([label, sub, val, fn], i, arr) => (
-            <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 0", borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
-              <div><div style={{ fontWeight: 600, fontSize: 13 }}>{label}</div><div style={{ fontSize: 10, color: "#475569", marginTop: 1 }}>{sub}</div></div>
-              <Toggle value={val} onChange={fn} />
-            </div>
-          ))}
-        </div>
-        <div className="card" style={{ background: "linear-gradient(135deg,rgba(168,85,247,0.07),rgba(99,102,241,0.04))", border: "1px solid rgba(168,85,247,0.14)" }}>
-          <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 11, color: "#A855F7" }}>ℹ️ About FamilyVerse</h3>
-          <p style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.7, marginBottom: 11 }}>FamilyVerse was born from a simple idea: families deserve a private, intelligent space where health, faith, communication, and memories come together. In a world of distraction, this is your sanctuary.</p>
-          <div style={{ padding: "11px 14px", background: "rgba(255,107,53,0.07)", borderRadius: 11, borderLeft: "3px solid #FF6B35" }}>
-            <p style={{ fontSize: 11, color: "#94A3B8", fontStyle: "italic", lineHeight: 1.7 }}>"I built FamilyVerse not just as software, but as a love letter to every family — especially those navigating the beautiful chaos of daily life. May it serve you with grace."</p>
-            <p style={{ fontSize: 11, color: "#FF6B35", fontWeight: 700, marginTop: 5 }}>— Syed Muzamil, Creator of FamilyVerse</p>
-          </div>
-          <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", fontSize: 11, color: "#3D3D5C" }}>
-            <span>Version 1.0.0</span><span>Crafted with care for families. 💛</span>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
-};
 
-// ── Auth Screen ──
-const Auth = ({ onAuth }) => {
-  const [mode, setMode] = useState("login");
-  const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
-  const [code, setCode] = useState("");
-  const [err, setErr] = useState("");
-  const submit = () => {
-    if (mode === "login" ? (email && pw) : (email && pw && code)) onAuth();
-    else setErr("Please fill all required fields.");
-  };
-  return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at center,#1A1A2E 0%,#0D0D1A 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, position: "relative" }}>
-      <Stars />
-      <div style={{ width: "100%", maxWidth: 420, position: "relative", zIndex: 1 }}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ fontFamily: "'Fredoka One',cursive", fontSize: 46, background: "linear-gradient(135deg,#FF6B35,#FFE66D)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 4 }}>🌟 FamilyVerse</div>
-          <div style={{ fontSize: 11, color: "#3D3D5C", letterSpacing: 2 }}>THE INTELLIGENT FAMILY UNIVERSE</div>
+  const Settings = () => (
+    <div className="page fade">
+      <div className="about-card">
+        <div style={{fontSize:36,marginBottom:8}}>🏠✨</div>
+        <div style={{fontFamily:"Fredoka One,cursive",fontSize:22}}>FamilyVerse</div>
+        <div style={{fontSize:10,opacity:.4,marginBottom:10}}>v3.0 · {family.familyName}</div>
+        <div style={{fontSize:12,opacity:.8,lineHeight:1.6,marginBottom:12}}>Built with love for every family — health, faith, memories, and connection in one private universe.</div>
+        <div className="about-q"><div style={{fontSize:11,fontStyle:"italic",opacity:.9}}>"I built FamilyVerse imagining my own family — the morning prayers, children's laughter, elders' wisdom."</div><div style={{fontSize:10,color:"#F59E0B",fontWeight:700,marginTop:4}}>— Syed Muzamil, Creator</div></div>
+      </div>
+      <div className="ss">👨‍👩‍👧‍👦 FAMILY</div>
+      <div className="card">
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+          <div style={{width:46,height:46,borderRadius:"50%",background:"linear-gradient(135deg,#F59E0B,#EF4444)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>🏠</div>
+          <div><div style={{fontWeight:800,fontSize:15,color:"var(--navy)"}}>{family.familyName}</div><div className="txt-m">{members.length} members</div></div>
         </div>
-        <div className="glass" style={{ borderRadius: 22, padding: 28 }}>
-          <div style={{ display: "flex", gap: 3, marginBottom: 22, background: "rgba(255,255,255,0.04)", borderRadius: 13, padding: 3 }}>
-            {["login", "signup"].map(m => (
-              <button key={m} onClick={() => { setMode(m); setErr(""); }} style={{ flex: 1, padding: "9px", border: "none", borderRadius: 10, cursor: "pointer", fontFamily: "'Nunito',sans-serif", fontWeight: 700, fontSize: 13, background: mode === m ? "linear-gradient(135deg,#FF6B35,#FF8C61)" : "transparent", color: mode === m ? "white" : "#64748B", transition: "all 0.3s" }}>{m === "login" ? "Sign In" : "Join Family"}</button>
-            ))}
+        <div className="invite-box">
+          <div style={{fontSize:10,fontWeight:700,color:"#92400E",marginBottom:3}}>🔑 FAMILY INVITE CODE — Share this!</div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}><div className="invite-code">{family.inviteCode}</div><button onClick={()=>{navigator.clipboard?.writeText(family.inviteCode);alert("Copied! ✅");}} style={{background:"#F59E0B",border:"none",borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:700,color:"white",cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>Copy</button></div>
+          <div className="txt-m" style={{marginTop:6}}>Family members: Open app → "Join Existing Family" → Enter this code → They're in! ✅</div>
+        </div>
+      </div>
+      <div className="ss">👥 MEMBERS</div>
+      {members.map(m=>(
+        <div key={m._id||m.id} className="si">
+          <div className="si-ic">{m.emoji}</div>
+          <div style={{flex:1}}><div className="si-t">{m.name}{m.name===me.name?" (You)":""}</div><div className="si-d">{m.role} · {m.online?"🟢 Online":"⚫ Offline"}</div></div>
+          <div style={{fontSize:18}}>{MOODS.find(md=>md.id===(m.mood||"happy"))?.e||"😊"}</div>
+        </div>
+      ))}
+      <div className="ss">🔔 NOTIFICATIONS</div>
+      {[{k:"notifications",e:"💊",t:"Medicine Reminders"},{k:"prayerAlerts",e:"🕌",t:"Prayer Alerts"},{k:"familyUpdates",e:"👨‍👩‍👧‍👦",t:"Family Updates"}].map(s=>(
+        <div key={s.k} className="si">
+          <div className="si-ic">{s.e}</div>
+          <div style={{flex:1}}><div className="si-t">{s.t}</div></div>
+          <button className={`toggle ${settings[s.k]?"on":"off"}`} onClick={()=>setSettings(p=>({...p,[s.k]:!p[s.k]}))} />
+        </div>
+      ))}
+      <div className="ss">⚠️ DANGER ZONE</div>
+      <div className="si" style={{border:"1px solid #FCA5A5"}} onClick={()=>{ if(confirm("Sign out?")) { LS.clear(); window.location.reload(); } }}>
+        <div className="si-ic">🚪</div><div style={{flex:1}}><div className="si-t" style={{color:"#EF4444"}}>Sign Out</div><div className="si-d">Return to login screen</div></div>
+      </div>
+      <div className="footer">Crafted with ❤️ for families<br/><em style={{color:"#CBD5E0",fontSize:10}}>FamilyVerse · A Syed Muzamil Creation</em></div>
+    </div>
+  );
+
+  const PAGES = { dashboard:<Dashboard/>, health:<Health/>, faith:<Faith/>, kids:<Kids/>, chat:<ChatList/>, memories:<Memories/>, emergency:<Emergency/>, settings:<Settings/> };
+
+  return (
+    <>
+      <style>{CSS}</style>
+      {showNotif&&<div className="notif-panel" onClick={()=>setShowNotif(false)}>
+        <div style={{fontWeight:800,fontSize:13,color:"var(--navy)",marginBottom:8}}>🔔 Notifications</div>
+        {[{e:"💊",t:`${medicines.filter(m=>!m.taken).length} medicines pending`,time:"Now"},{e:"🕌",t:nextPrayer?`Next: ${nextPrayer.name} at ${nextPrayer.time}`:"All prayers done ✓",time:"Today"},{e:"💬",t:unreadMsgs>0?`${unreadMsgs} unread messages`:"No new messages",time:"Today"}].map((n,i)=>(
+          <div key={i} className="ni-item">
+            <div style={{fontSize:18,flexShrink:0}}>{n.e}</div>
+            <div><div style={{fontSize:12,color:"var(--navy)",fontWeight:600}}>{n.t}</div><div style={{fontSize:10,color:"var(--muted)",marginTop:1}}>{n.time}</div></div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-            <input placeholder="Email address" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-            <input placeholder="Password" type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} />
-            {mode === "signup" && <input placeholder="Family invite code (e.g. FAM-X7K2P)" value={code} onChange={e => setCode(e.target.value)} />}
-            {err && <p style={{ fontSize: 11, color: "#EF4444" }}>{err}</p>}
-            <button className="btn btn-primary" style={{ justifyContent: "center", padding: "13px", fontSize: 14 }} onClick={submit}>
-              {mode === "login" ? "Enter FamilyVerse →" : "Create Account →"}
+        ))}
+      </div>}
+      <div id="fv">
+        <div className={`conn-bar${socketConnected?"":" off"}`}>{socketConnected?"🟢 Connected — Real-time active":"🔴 Connecting to server..."}</div>
+        <div className="topbar">
+          <div className="tb-brand"><div className="tb-ic">🏠</div><div><div className="tb-title">FamilyVerse</div><div className="tb-sub">{PAGE_TITLES[page]}</div></div></div>
+          <div className="tb-right">
+            <button className="tb-btn" onClick={()=>setShowNotif(n=>!n)}>🔔{(medicines.filter(m=>!m.taken).length>0||unreadMsgs>0)&&<div className="tb-dot"/>}</button>
+            <button className="tb-btn" style={{fontSize:18}} onClick={()=>setPage("settings")}>{me.emoji}</button>
+          </div>
+        </div>
+        <div className="scroll">{PAGES[page]}</div>
+        <div className="bnav">
+          {NAV.map(n=>(
+            <button key={n.id} className={`nb${page===n.id?" active":""}`} onClick={()=>{setPage(n.id);setOpenChat(null);}}>
+              <div className="ni">{n.icon}</div>{n.l}
+              {n.badge>0&&<div className="nb-badge">{n.badge}</div>}
             </button>
-            <p style={{ fontSize: 10, color: "#475569", textAlign: "center" }}>Demo: enter any email + password to explore</p>
-          </div>
+          ))}
         </div>
-        <div style={{ textAlign: "center", marginTop: 22 }}>
-          <p style={{ fontSize: 11, color: "#3D3D5C", fontStyle: "italic" }}>"Where every family moment becomes a memory forever."</p>
-          <p style={{ fontSize: 10, color: "#FF6B35", marginTop: 4, fontWeight: 700 }}>— Syed Muzamil</p>
-        </div>
-        <p style={{ textAlign: "center", fontSize: 9, color: "#2D2D4E", marginTop: 11 }}>Crafted with care for families.</p>
       </div>
-    </div>
-  );
-};
-
-// ── App Root ──
-export default function App() {
-  const [authed, setAuthed] = useState(false);
-  const [active, setActive] = useState("dashboard");
-  const [sideOpen, setSideOpen] = useState(false);
-  const pages = { dashboard: <Dashboard setActive={setActive} />, health: <Health />, faith: <Faith />, kids: <Kids />, chat: <Chat />, memories: <Memories />, emergency: <Emergency />, settings: <Settings /> };
-  if (!authed) return <><style>{globalStyles}</style><Auth onAuth={() => setAuthed(true)} /></>;
-  return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#0D0D1A", position: "relative" }}>
-      <style>{globalStyles}</style>
-      <Stars />
-      {/* Mobile header */}
-      <div className="mobile-header" style={{ display: "none", position: "fixed", top: 0, left: 0, right: 0, zIndex: 200, background: "#0D0D1A", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "11px 14px", alignItems: "center", gap: 11 }}>
-        <button onClick={() => setSideOpen(!sideOpen)} className="btn btn-ghost" style={{ padding: "7px 9px" }}><I n="menu" s={17} /></button>
-        <span style={{ fontFamily: "'Fredoka One',cursive", fontSize: 18, background: "linear-gradient(135deg,#FF6B35,#FFE66D)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>🌟 FamilyVerse</span>
-      </div>
-      <Sidebar active={active} setActive={p => { setActive(p); setSideOpen(false); }} open={sideOpen} />
-      <main style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
-        {pages[active]}
-        <footer style={{ padding: "16px 22px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 7 }}>
-          <span style={{ fontSize: 10, color: "#2D2D4E" }}>Crafted with care for families. 💛</span>
-          <span style={{ fontSize: 10, color: "#2D2D4E", fontStyle: "italic" }}>A creation by Syed Muzamil</span>
-        </footer>
-      </main>
-      {sideOpen && <div onClick={() => setSideOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 99 }} />}
-    </div>
+    </>
   );
 }
