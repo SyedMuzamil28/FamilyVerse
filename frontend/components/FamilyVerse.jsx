@@ -15,9 +15,9 @@ const api = async (method, path, body, token) => {
 };
 
 const LS = {
-  get: (k, d) => { try { if (typeof window === "undefined") return d; const v = localStorage.getItem("fv4_" + k); return v ? JSON.parse(v) : d; } catch { return d; } },
-  set: (k, v) => { try { if (typeof window === "undefined") return; localStorage.setItem("fv4_" + k, JSON.stringify(v)); } catch {} },
-  clear: () => { try { if (typeof window === "undefined") return; Object.keys(localStorage).filter(k => k.startsWith("fv4_")).forEach(k => localStorage.removeItem(k)); } catch {} },
+  get: (k, d) => { try { if (typeof window === "undefined") return d; const v = localStorage.getItem("fv_" + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set: (k, v) => { try { if (typeof window === "undefined") return; localStorage.setItem("fv_" + k, JSON.stringify(v)); } catch {} },
+  clear: () => { try { if (typeof window === "undefined") return; Object.keys(localStorage).filter(k => k.startsWith("fv_")).forEach(k => localStorage.removeItem(k)); } catch {} },
 };
 
 const ROLES = ["Father","Mother","Son","Daughter","Brother","Sister","Grandfather","Grandmother","Uncle","Aunt","Other"];
@@ -345,48 +345,9 @@ function DrawingBoard() {
   );
 }
 
-function OnboardingSlides({ onDone }) {
-  const [slide, setSlide] = useState(0);
-  const SLIDES = [
-    {bg:"linear-gradient(135deg,#1E3A5F,#0D9488)",icon:"🏠",title:"Welcome to FamilyVerse",sub:"Your private family universe",desc:"One app for your whole family — health, chat, faith, memories and safety. All in one private place."},
-    {bg:"linear-gradient(135deg,#6366F1,#8B5CF6)",icon:"✨",title:"Everything In One Place",sub:"6 powerful features",features:[{e:"💬",t:"Real-time Family Chat"},{e:"❤️",t:"Health & Medicine"},{e:"☪️",t:"Prayer Times & Qibla"},{e:"🤖",t:"AI Health Assistant"},{e:"📸",t:"Memory Capsule"},{e:"🆘",t:"Emergency SOS"}]},
-    {bg:"linear-gradient(135deg,#0D9488,#22C55E)",icon:"🔒",title:"100% Private & Secure",sub:"Only your family",desc:"Secret invite code. No strangers. No ads. More private than WhatsApp."},
-    {bg:"linear-gradient(135deg,#F59E0B,#EF4444)",icon:"🚀",title:"Ready to Connect!",sub:"Takes 1 minute",steps:[{n:"1",t:"Create your family"},{n:"2",t:"Share the invite code"},{n:"3",t:"Family joins instantly"},{n:"4",t:"Start using together! 🎉"}]},
-  ];
-  const s=SLIDES[slide],isLast=slide===SLIDES.length-1;
-  return(
-    <div style={{position:"fixed",inset:0,background:s.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"30px 24px",zIndex:2000}}>
-      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}} .ob-slide{animation:fadeUp .35s ease;}`}</style>
-      <button onClick={onDone} style={{position:"absolute",top:50,right:20,background:"rgba(255,255,255,.2)",border:"none",color:"white",padding:"6px 16px",borderRadius:20,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Skip</button>
-      <div className="ob-slide" key={slide} style={{textAlign:"center",maxWidth:340,width:"100%"}}>
-        <div style={{fontSize:64,marginBottom:12,lineHeight:1}}>{s.icon}</div>
-        <div style={{fontSize:24,fontWeight:800,color:"white",marginBottom:6,lineHeight:1.2}}>{s.title}</div>
-        <div style={{fontSize:13,color:"rgba(255,255,255,.7)",marginBottom:24}}>{s.sub}</div>
-        {s.desc&&<div style={{fontSize:14,color:"rgba(255,255,255,.9)",lineHeight:1.8,background:"rgba(255,255,255,.12)",borderRadius:16,padding:"16px 20px"}}>{s.desc}</div>}
-        {s.features&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{s.features.map((f,i)=><div key={i} style={{background:"rgba(255,255,255,.15)",borderRadius:14,padding:"12px 10px",display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:22}}>{f.e}</span><span style={{fontSize:12,fontWeight:600,color:"white",textAlign:"left"}}>{f.t}</span></div>)}</div>}
-        {s.steps&&<div style={{display:"flex",flexDirection:"column",gap:10}}>{s.steps.map((st,i)=><div key={i} style={{background:"rgba(255,255,255,.15)",borderRadius:14,padding:"12px 16px",display:"flex",alignItems:"center",gap:14}}><div style={{width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:"white",flexShrink:0}}>{st.n}</div><span style={{fontSize:14,fontWeight:600,color:"white"}}>{st.t}</span></div>)}</div>}
-      </div>
-      <div style={{position:"absolute",bottom:50,left:24,right:24}}>
-        <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:20}}>{SLIDES.map((_,i)=><div key={i} onClick={()=>setSlide(i)} style={{width:i===slide?24:8,height:8,borderRadius:4,background:i===slide?"white":"rgba(255,255,255,.35)",transition:"all .3s",cursor:"pointer"}}/>)}</div>
-        <button onClick={()=>isLast?onDone():setSlide(s=>s+1)} style={{width:"100%",padding:"15px 20px",borderRadius:14,border:"none",background:"white",color:"#1E3A5F",fontFamily:"inherit",fontWeight:800,fontSize:16,cursor:"pointer"}}>{isLast?"Let's Get Started! 🚀":"Next →"}</button>
-      </div>
-    </div>
-  );
-}
-
-
 export default function FamilyVerse() {
   const [session, setSession] = useState(null);
   const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-    const savedSession = LS.get("session", null);
-    if (savedSession) setSession(savedSession);
-    if (!LS.get("ob_done", false)) setShowOnboarding(true);
-    setMyMood(LS.get("myMood", "happy"));
-  }, []);
-
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [obMode, setObMode] = useState("create");
   const [obStep, setObStep] = useState(1);
   const [obData, setObData] = useState({ familyName:"", userName:"", role:"Father", city:"Hyderabad", password:"", joinCode:"" });
@@ -545,13 +506,32 @@ export default function FamilyVerse() {
   };
 
   useEffect(() => {
+    setMounted(true);
+    const savedSession = LS.get("session", null);
+    if (savedSession) setSession(savedSession);
+  }, []);
+
+  useEffect(() => {
     if (session?.token) {
       loadData(session.token, session.city);
       connectSocket(session.token);
       loadMessages("group");
+      // Register for push notifications
+      setTimeout(async () => {
+        try {
+          if (typeof window !== "undefined" && window.OneSignal) {
+            await window.OneSignal.Notifications.requestPermission();
+            await new Promise(r => setTimeout(r, 2000));
+            const pid = window.OneSignal.User?.PushSubscription?.id;
+            if (pid) {
+              await api("POST", "/notifications/register", { playerId: pid }, session.token);
+            }
+          }
+        } catch(e) { console.log("Push:", e.message); }
+      }, 3000);
     }
     return () => socketRef.current?.disconnect();
-  }, [session]);
+  }, [session?.token]);
 
   useEffect(() => { LS.set("water", water); }, [water]);
   useEffect(() => { LS.set("challenges", challenges); }, [challenges]);
@@ -581,6 +561,8 @@ export default function FamilyVerse() {
     } catch(e) { alert("❌ " + e.message); }
     finally { setObLoading(false); }
   };
+
+  if (!mounted) return null;
 
   if (!session) {
     return (
@@ -743,7 +725,7 @@ export default function FamilyVerse() {
 
   if (page==="chat" && openChat) {
     const chatId = openChat.id==="group" ? "group" : [me.name, openChat.name].sort().join("-");
-    const chatMsgs = messages.filter(m=>m.chatId===chatId||(openChat.id==="group"&&!m.chatId));
+    const chatMsgs = messages.filter(m=>m.chatId===chatId);
     return (
       <>
         <style>{CSS}</style>
@@ -1131,7 +1113,7 @@ export default function FamilyVerse() {
         </div>
         <div className="invite-box">
           <div style={{fontSize:10,fontWeight:700,color:"#92400E",marginBottom:3}}>🔑 FAMILY INVITE CODE — Share this!</div>
-          <div style={{display:"flex",alignItems:"center",gap:8}}><div className="invite-code">{family.inviteCode}</div><button onClick={()=>{navigator.clipboard?.writeText(family.inviteCode);alert("Copied! ✅");}} style={{background:"#F59E0B",border:"none",borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:700,color:"white",cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>Copy</button></div>
+          <div className="invite-code">{family.inviteCode}</div>
           <div className="txt-m" style={{marginTop:6}}>Family members: Open app → "Join Existing Family" → Enter this code → They're in! ✅</div>
         </div>
       </div>
@@ -1152,7 +1134,7 @@ export default function FamilyVerse() {
         </div>
       ))}
       <div className="ss">⚠️ DANGER ZONE</div>
-      <div className="si" style={{border:"1px solid #FCA5A5"}} onClick={()=>{ if(confirm("Sign out?")) { LS.clear(); window.location.reload(); } }}>
+      <div className="si" style={{border:"1px solid #FCA5A5"}} onClick={()=>{ if(confirm("Sign out?")) { LS.clear(); setSession(null); } }}>
         <div className="si-ic">🚪</div><div style={{flex:1}}><div className="si-t" style={{color:"#EF4444"}}>Sign Out</div><div className="si-d">Return to login screen</div></div>
       </div>
       <div className="footer">Crafted with ❤️ for families<br/><em style={{color:"#CBD5E0",fontSize:10}}>FamilyVerse · A Syed Muzamil Creation</em></div>
