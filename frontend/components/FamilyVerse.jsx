@@ -487,7 +487,7 @@ export default function FamilyVerse() {
 
   // Compass
   useEffect(() => {
-    const handler = (e) => { if (e.alpha !== null) setCompassHeading(e.alpha); };
+    const handler = (e) => {   if (e.alpha !== null) {     setCompassHeading(prev => {       const diff = Math.abs(prev - e.alpha);       return diff > 1 ? Math.round(e.alpha) : prev;     });   } };
     window.addEventListener("deviceorientation", handler, true);
     return () => window.removeEventListener("deviceorientation", handler, true);
   }, []);
