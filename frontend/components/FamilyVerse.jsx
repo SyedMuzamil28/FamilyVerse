@@ -405,7 +405,7 @@ export default function FamilyVerse() {
   const [fmLog, setFmLog] = useState({ text:"", member:"", bloodSugar:"", bloodPressure:"" });
   const [fmApt, setFmApt] = useState({ doctorName:"", specialty:"", date:"", member:"", notes:"" });
   const [chatInput, setChatInput] = useState("");
-  const [aiQuery, setAiQuery] = useState("");
+  const [aiQuery] = useState(""); const aiQueryRef = useRef("");
   const [aiResponse, setAiResponse] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -486,8 +486,12 @@ export default function FamilyVerse() {
   }, []);
 
   // Compass
-  useEffect(() => {
-    const handler = (e) => {   if (e.alpha !== null) {     setCompassHeading(prev => {       const diff = Math.abs(prev - e.alpha);       return diff > 1 ? Math.round(e.alpha) : prev;     });   } };
+  useEffect(() => {const handler = (e) => {
+  if (e.alpha !== null) {
+    const rounded = Math.round(e.alpha);
+    setCompassHeading(prev => Math.abs(prev - rounded) > 1 ? rounded : prev);
+  }
+};
     window.addEventListener("deviceorientation", handler, true);
     return () => window.removeEventListener("deviceorientation", handler, true);
   }, []);
@@ -699,10 +703,10 @@ export default function FamilyVerse() {
   };
 
   const askAI = async () => {
-    if (!aiQuery.trim()) return;
+    if (!aiQueryRef.current.trim()) return;
     setAiLoading(true);
     try {
-      const data = await api("POST","/health/ai-advice",{ note:aiQuery, member:me.name },T);
+      const data = await api("POST","/health/ai-advice",{ note:aiQueryRef.current, member:me.name },T);
       setAiResponse(data.advice);
     } catch { setAiResponse("AI assistant unavailable. Make sure ANTHROPIC_API_KEY is set in Railway."); }
     finally { setAiLoading(false); }
@@ -882,7 +886,7 @@ export default function FamilyVerse() {
         <div className="ai-title">🤖 AI Health Assistant</div>
         <div style={{fontSize:12,opacity:.8}}>Ask about health conditions, symptoms, or get advice.</div>
         <div className="ai-row">
-          <input className="ai-inp" placeholder="e.g. blood sugar 145, what to do?" value={aiQuery} onChange={e=>setAiQuery(e.target.value)} onKeyDown={e=>e.key==="Enter"&&askAI()} />
+          <input className="ai-inp" placeholder="e.g. blood sugar 145, what to do?" defaultValue={aiQuery} onChange={e=>{aiQueryRef.current=e.target.value;}} onKeyDown={e=>e.key==="Enter"&&askAI()} />
           <button className="ai-btn" onClick={askAI} disabled={aiLoading}>{aiLoading?"...":"Ask 🤖"}</button>
         </div>
         {aiResponse&&<div className="ai-resp">🤖 {aiResponse}</div>}
@@ -931,8 +935,8 @@ export default function FamilyVerse() {
           </div>
         ))}
       </div>
-      {showAddMed&&<div className="mo-overlay" onClick={e=>e.target===e.currentTarget&&setShowAddMed(false)}><div className="modal"><div className="modal-t">💊 Add Medicine</div><label className="ob-lbl">Medicine Name *</label><input className="inp" placeholder="e.g. Vitamin D" value={fmMed.name} onChange={e=>setFmMed({...fmMed,name:e.target.value})} /><label className="ob-lbl">Time</label><input className="inp" placeholder="e.g. 08:00 AM" value={fmMed.time} onChange={e=>setFmMed({...fmMed,time:e.target.value})} /><label className="ob-lbl">For which member?</label><input className="inp" placeholder={me.name} value={fmMed.member} onChange={e=>setFmMed({...fmMed,member:e.target.value})} /><button className="ob-btn" style={{fontSize:14}} onClick={()=>{ if(!fmMed.name.trim()) return alert("Enter medicine name!"); api("POST","/health/medicines",{...fmMed,member:fmMed.member||me.name},T).then(m=>{setMedicines(p=>[...p,m]);setFmMed({name:"",time:"",member:""});setShowAddMed(false);}).catch(e=>alert(e.message)); }}>Save ✅</button></div></div>}
-      {showAddLog&&<div className="mo-overlay" onClick={e=>e.target===e.currentTarget&&setShowAddLog(false)}><div className="modal"><div className="modal-t">📋 Add Health Log</div><label className="ob-lbl">Note *</label><input className="inp" placeholder="e.g. Feeling dizzy after lunch" value={fmLog.text} onChange={e=>setFmLog({...fmLog,text:e.target.value})} /><label className="ob-lbl">Blood Sugar (mg/dL)</label><input className="inp" type="number" placeholder="e.g. 120" value={fmLog.bloodSugar} onChange={e=>setFmLog({...fmLog,bloodSugar:e.target.value})} /><label className="ob-lbl">Blood Pressure</label><input className="inp" placeholder="e.g. 120/80" value={fmLog.bloodPressure} onChange={e=>setFmLog({...fmLog,bloodPressure:e.target.value})} /><button className="ob-btn" style={{fontSize:14}} onClick={()=>{ if(!fmLog.text.trim()) return alert("Enter a note!"); api("POST","/health/logs",{...fmLog,member:me.name},T).then(l=>{setHealthLogs(p=>[l,...p]);setFmLog({text:"",member:"",bloodSugar:"",bloodPressure:""});setShowAddLog(false);}).catch(e=>alert(e.message)); }}>Save & Get AI Analysis 🤖</button></div></div>}
+      {showAddMed&&<div className="mo-overlay" onClick={e=>e.target===e.currentTarget&&setShowAddMed(false)}><div className="modal"><div className="modal-t">💊 Add Medicine</div><label className="ob-lbl">Medicine Name *</label><input className="inp" placeholder="e.g. Vitamin D" defaultValue={fmMed.name} onChange={e=>setFmMed(p=>({...p,name:e.target.value}))} /><label className="ob-lbl">Time</label><input className="inp" placeholder="e.g. 08:00 AM" defaultValue={fmMed.time} onChange={e=>setFmMed(p=>({...p,time:e.target.value}))} /><label className="ob-lbl">For which member?</label><input className="inp" placeholder={me.name} defaultValue={fmMed.member} onChange={e=>setFmMed(p=>({...p,member:e.target.value}))} /><button className="ob-btn" style={{fontSize:14}} onClick={()=>{ if(!fmMed.name.trim()) return alert("Enter medicine name!"); api("POST","/health/medicines",{...fmMed,member:fmMed.member||me.name},T).then(m=>{setMedicines(p=>[...p,m]);setFmMed({name:"",time:"",member:""});setShowAddMed(false);}).catch(e=>alert(e.message)); }}>Save ✅</button></div></div>}
+      {showAddLog&&<div className="mo-overlay" onClick={e=>e.target===e.currentTarget&&setShowAddLog(false)}><div className="modal"><div className="modal-t">📋 Add Health Log</div><label className="ob-lbl">Note *</label><input className="inp" placeholder="e.g. Feeling dizzy after lunch" defaultValue={fmLog.text} onChange={e=>setFmLog(p=>({...p,text:e.target.value}))} /><label className="ob-lbl">Blood Sugar (mg/dL)</label><input className="inp" type="number" placeholder="e.g. 120" value={fmLog.bloodSugar} onChange={e=>setFmLog({...fmLog,bloodSugar:e.target.value})} /><label className="ob-lbl">Blood Pressure</label><input className="inp" placeholder="e.g. 120/80" value={fmLog.bloodPressure} onChange={e=>setFmLog({...fmLog,bloodPressure:e.target.value})} /><button className="ob-btn" style={{fontSize:14}} onClick={()=>{ if(!fmLog.text.trim()) return alert("Enter a note!"); api("POST","/health/logs",{...fmLog,member:me.name},T).then(l=>{setHealthLogs(p=>[l,...p]);setFmLog({text:"",member:"",bloodSugar:"",bloodPressure:""});setShowAddLog(false);}).catch(e=>alert(e.message)); }}>Save & Get AI Analysis 🤖</button></div></div>}
       {showAddApt&&<div className="mo-overlay" onClick={e=>e.target===e.currentTarget&&setShowAddApt(false)}><div className="modal"><div className="modal-t">🏥 Add Appointment</div><label className="ob-lbl">Doctor Name *</label><input className="inp" placeholder="e.g. Dr. Ahmed Khan" value={fmApt.doctorName} onChange={e=>setFmApt({...fmApt,doctorName:e.target.value})} /><label className="ob-lbl">Specialty</label><input className="inp" placeholder="e.g. Cardiologist" value={fmApt.specialty} onChange={e=>setFmApt({...fmApt,specialty:e.target.value})} /><label className="ob-lbl">Date *</label><input className="inp" type="date" value={fmApt.date} onChange={e=>setFmApt({...fmApt,date:e.target.value})} /><label className="ob-lbl">Family Member</label><input className="inp" placeholder={me.name} value={fmApt.member} onChange={e=>setFmApt({...fmApt,member:e.target.value})} /><label className="ob-lbl">Notes</label><input className="inp" placeholder="Any notes..." value={fmApt.notes} onChange={e=>setFmApt({...fmApt,notes:e.target.value})} /><button className="ob-btn" style={{fontSize:14}} onClick={()=>{ if(!fmApt.doctorName.trim()||!fmApt.date) return alert("Fill required fields!"); api("POST","/health/appointments",{...fmApt,member:fmApt.member||me.name},T).then(a=>{setAppointments(p=>[...p,a]);setFmApt({doctorName:"",specialty:"",date:"",member:"",notes:""});setShowAddApt(false);}).catch(e=>alert(e.message)); }}>Save ✅</button></div></div>}
     </div>
   );
@@ -986,7 +990,7 @@ export default function FamilyVerse() {
     </div>
   </div>
 </div>              <div className="txt-m" style={{marginTop:6}}>{qiblaDir!==null?`${qiblaDir}° · Towards Makkah`:"Getting location..."}</div>
-              {qiblaDir===null&&<button className="btn btn-a btn-sm mt8" onClick={loadQibla}>📍 Enable GPS</button>}
+              <button className="btn btn-a btn-sm mt8" onClick={async()=>{   if(typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function"){     try{await DeviceOrientationEvent.requestPermission();}catch(e){}   }   loadQibla(); }}>{qiblaDir?`${qiblaDir}° · Tap to refresh`:"📍 Get Qibla Direction"}</button>
             </div>
           </div>
         </div>
